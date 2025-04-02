@@ -174,5 +174,5 @@ cython_debug/
 .pypirc
 
 # 自定义的文件内容
-media/task_dir/
+task_dir/
 migrations/
