@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>语言学数据标注平台</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/4.6.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
+    <style>
+        .spinner-border {
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+
+        .mt-1 {
+            margin-top: 0.25rem;
+        }
+
+        .card {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group-text {
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container mt-4">
+    <!-- 任务列表区 -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">任务列表</h5>
+    <div class="d-flex gap-3 align-items-center"> <!-- 修改了这里 -->
+        <div class="d-flex gap-1"> <!-- 新增按钮容器 -->
+            <button class="btn btn-success btn-sm" onclick="addTask()">+ 新增任务</button>
+        </div>
+    </div>
+</div>
+        <div class="card-body">
+            <table id="dataTable" class="table table-hover">
+            <thead>
+            <tr>
+                <th class="text-center font-weight-bold">任务名称</th>
+                <th class="text-center font-weight-bold">任务描述</th>
+                <th class="text-center font-weight-bold">创建时间</th>
+                <th class="text-center font-weight-bold">更新时间</th>
+                <th class="text-center font-weight-bold">详情</th>
+                <th class="text-center font-weight-bold">删除</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for record in records %}
+                <tr>
+                <td contenteditable="true">{{ record.task_name }}</td>
+                <td contenteditable="true">{{ record.task_description }}</td>
+                <td contenteditable="true">{{ record.created_at }}</td>
+                <td contenteditable="true">{{ record.updated_at }}</td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-primary" onclick="viewTaskDetails({{ record.task_id }})">详情</button>
+                </td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-danger" onclick="deleteTask(this)">删除</button>
+                    <label class="d-none task-id-label">{{ record.task_id }}</label>
+                </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+<!-- Scripts -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
+<script>
+    // 初始化表格
+    $(document).ready(function () {
+        $('#dataTable').DataTable();
+    });
+
+    // 添加新的任务
+    function addTask() {
+        // 转向到添加任务页面
+        window.location.href = 'listing/task_create/';
+    }
+    // 删除任务
+    function deleteTask(btn) {
+        // 获取当前行的id
+        var taskId = $(btn).siblings('.task-id-label').text();
+    
+        // 确认删除
+        if (confirm('确定要删除这个任务吗？请备份任务相关的数据！')) {
+            // 向后端发送删除请求
+            // Get CSRF token from cookie
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+            const csrftoken = getCookie('csrftoken');
+            
+            $.ajax({
+                url: '/listing/task_delete/',
+                type: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken
+                },
+                data: JSON.stringify({
+                    'task_id': taskId
+                }),
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        alert('删除成功');
+                        // 刷新页面
+                        window.location.reload();                        
+                    } else {
+                        alert('删除失败: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('删除请求出错: ' + error);
+                }
+            });
+        }
+    }
+
+    function viewTaskDetails(taskId) {
+        // 转向到任务详情页面
+        window.location.href = 'details/' + taskId + '/';
+    }
+
+</script>
+</body>
+</html>

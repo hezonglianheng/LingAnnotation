@@ -172,3 +172,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# 自定义的文件内容
+media/task_dir/
+migrations/
