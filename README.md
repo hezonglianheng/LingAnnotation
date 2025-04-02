@@ -4,7 +4,7 @@
 ## 鸣谢
 本程序来源于[@Dylandjk](https://github.com/Dylandjk)的[myproject](https://github.com/Dylandjk/myproject)项目，为便于管理而设置本仓库，在此表示感谢。
 
-本程序只用于学术研究目的。
+本程序只用于学术研究目的，遵循GPL3.0开源协议。
 
 ## 环境
 Python版本：[3.7.8](https://www.python.org/downloads/release/python-378/)
