@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List, Dict
 
 def parse_txt(file) -> List[Dict]:
-    lines: list[str] = file.read().decode('utf-8').splitlines()
+    lines: List[str] = file.read().decode('utf-8').splitlines()
     # 创建数据
     data = [
         {
