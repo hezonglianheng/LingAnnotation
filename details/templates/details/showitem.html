@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>语料详情 - 语言学数据标注平台</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/4.6.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
+    <style>
+        .spinner-border {
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+
+        .mt-1 {
+            margin-top: 0.25rem;
+        }
+
+        .card {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group-text {
+            background-color: #f8f9fa;
+        }
+        
+        .action-buttons .btn {
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .text-content {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #495057;
+        }
+        
+        .text-content p {
+            margin-bottom: 1.5rem;
+        }
+        
+        /* 下划线标签样式 */
+.underlined {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+    padding-bottom: 25px;
+    margin: 0 2px;
+}
+
+.underlined::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 18px;
+    width: 100%;
+    height: 3px;
+    background: #007bff; /* 默认颜色 */
+    border-radius: 2px;
+    transform-origin: left;
+    transform: scaleX(0.95);
+}
+
+.underlined .label {
+    position: absolute;
+    left: 50%;
+    bottom: -8px;
+    transform: translateX(-50%);
+    background: #007bff;
+    color: white;
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 8px;
+    white-space: nowrap;
+    opacity: 1;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    z-index: 10;
+}
+
+.underlined:hover .label {
+    transform: translateX(-50%) translateY(-3px) scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.underlined:hover::after {
+    height: 4px;
+}
+
+/* 标签和下划线颜色统一 - 使用Bootstrap颜色 */
+.underlined:has(.label-type-1)::after,
+.underlined.type-1::after { background: #007bff; }
+.underlined:has(.label-type-2)::after,
+.underlined.type-2::after { background: #dc3545; }
+.underlined:has(.label-type-3)::after,
+.underlined.type-3::after { background: #28a745; }
+.underlined:has(.label-type-4)::after,
+.underlined.type-4::after { background: #fd7e14; }
+.underlined:has(.label-type-5)::after,
+.underlined.type-5::after { background: #6f42c1; }
+
+/* 悬停时下划线颜色加深 */
+.underlined:has(.label-type-1):hover::after,
+.underlined.type-1:hover::after { background: #0056b3; }
+.underlined:has(.label-type-2):hover::after,
+.underlined.type-2:hover::after { background: #c82333; }
+.underlined:has(.label-type-3):hover::after,
+.underlined.type-3:hover::after { background: #1e7e34; }
+.underlined:has(.label-type-4):hover::after,
+.underlined.type-4:hover::after { background: #e55100; }
+.underlined:has(.label-type-5):hover::after,
+.underlined.type-5:hover::after { background: #5a32a3; }
+
+/* 标签颜色 */
+.label-type-1 { background: #007bff; }
+.label-type-2 { background: #dc3545; }
+.label-type-3 { background: #28a745; }
+.label-type-4 { background: #fd7e14; }
+.label-type-5 { background: #6f42c1; }
+    </style>
+</head>
+<body>
+
+<div class="container mt-4">
+    <!-- 语料信息卡片 -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-file-alt"></i> 语料详情
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <h6 class="text-muted mb-3">语料内容</h6>
+                    <div class="text-content">
+                        <p>
+                            {% for seg in segments %}
+                                {% if seg.label %}
+                                    <span class="underlined">{{ seg.text }}
+                                        <span class="label label-type-1">{{ seg.label.type }}</span>
+                                    </span>
+                                {% else %}
+                                    {{ seg.text }}
+                                {% endif %}
+                            {% endfor %}
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <h6 class="text-muted mb-3">操作</h6>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary btn-sm" onclick="editAnnotation()">
+                            <i class="fas fa-edit"></i> 编辑标注
+                        </button>
+                        <button class="btn btn-info btn-sm" onclick="viewHistory()">
+                            <i class="fas fa-history"></i> 查看历史
+                        </button>
+                        <button class="btn btn-success btn-sm" onclick="exportData()">
+                            <i class="fas fa-download"></i> 导出数据
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="close()">
+                            <i class="fas fa-arrow-left"></i> 关闭页面
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+<!-- Scripts -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
+<script src="https://kit.fontawesome.com/a076d05399.js"></script>
+<script>
+    // 编辑标注
+    function editAnnotation() {
+        alert('编辑标注功能');
+    }
+    
+    // 查看历史
+    function viewHistory() {
+        alert('查看历史功能');
+    }
+    
+    // 导出数据
+    function exportData() {
+        alert('导出数据功能');
+    }
+    
+    // 返回列表
+    function close() {
+        // 关闭页面
+        window.close();
+    }
+</script>
+</body>
+</html>

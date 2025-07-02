@@ -10,3 +10,7 @@ TEXT = "text"
 TAGS = "tags"
 LABELS = "labels"
 RELATIONS = "relations"
+
+# 数据label的字段
+START = "start"
+END = "end"

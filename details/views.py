@@ -9,15 +9,18 @@ from pathlib import Path
 import json
 import zipfile
 import os
+from typing import Dict, Any
 
 def task_detail(request, task_id):
     # Fetch the task record from the database using the task_id
     task_record = TaskRecord.objects.get(task_id=task_id)
     task_dirpath = task_record.task_dirpath
+    print(task_dirpath)
     data_filepath = Path(task_dirpath) / 'data.json'
     with data_filepath.open("r", encoding='utf-8') as f:
         data = json.load(f)
     
+    # print(data[0])
     # Render the template with the task record
     return render(request, 'details/index.html', {'task': task_record, "corpus_items": data})
 
@@ -143,3 +146,47 @@ def delete_task_item(request):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': f"删除条目失败: {str(e)}"})
     return JsonResponse({'status': 'error', 'message': '只接受POST请求'})
+
+@ensure_csrf_cookie
+def show_item(request, task_id, item_id):
+    try:
+        # 获取任务记录
+        task_record = TaskRecord.objects.get(task_id=task_id)
+        task_dirpath = task_record.task_dirpath
+        
+        # 读取数据文件
+        file_path = Path(task_dirpath) / 'data.json'
+        print(file_path)
+        with file_path.open("r", encoding='utf-8') as f:
+            data = json.load(f)
+        
+        print(data[0])
+        # 查找指定ID的条目
+        item: Dict[str, Any] = next((item for item in data if item[config.ID] == item_id), None)
+        
+        if not item:
+            return JsonResponse({'status': 'error', 'message': '未找到指定条目'})
+        
+        # TODO: 设计显示逻辑
+        # 处理label的显示
+        sorted_labels = sorted(item[config.LABELS], key=lambda x: (x[config.START], x[config.END]))
+        if not utils.check_labels_no_overlap(sorted_labels):
+            return JsonResponse({'status': 'error', 'message': '标签存在重叠，无法显示'})
+
+        # 根据标签的起始和终止位置切分文本，用于后续显示
+        text = item[config.TEXT]
+        segments = []
+        last_end = 0
+        for label in sorted_labels:
+            start = label[config.START]
+            end = label[config.END]
+            if last_end < start:
+                segments.append({'text': text[last_end:start], 'label': None})
+            segments.append({'text': text[start:end], 'label': label})
+            last_end = end
+        if last_end < len(text):
+            segments.append({'text': text[last_end:], 'label': None})
+
+        return render(request, 'details/showitem.html', {'task': task_record, 'item': item, 'segments': segments})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f"显示条目失败: {str(e)}"})
