@@ -9,13 +9,13 @@ from pathlib import Path
 import json
 import zipfile
 import os
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 def task_detail(request, task_id):
     # Fetch the task record from the database using the task_id
     task_record = TaskRecord.objects.get(task_id=task_id)
     task_dirpath = task_record.task_dirpath
-    print(task_dirpath)
+    # print(task_dirpath)
     data_filepath = Path(task_dirpath) / 'data.json'
     with data_filepath.open("r", encoding='utf-8') as f:
         data = json.load(f)
@@ -120,7 +120,7 @@ def delete_task_item(request):
             data = json.loads(request.body)
             task_id = data.get('task_id')
             item_id = data.get('item_id')
-            print(task_id, item_id)
+            # print(task_id, item_id)
             
             # 检查task_id和item_id是否为整数
             if not isinstance(task_id, int) or not isinstance(item_id, int):
@@ -156,11 +156,11 @@ def show_item(request, task_id, item_id):
         
         # 读取数据文件
         file_path = Path(task_dirpath) / 'data.json'
-        print(file_path)
+        # print(file_path)
         with file_path.open("r", encoding='utf-8') as f:
             data = json.load(f)
         
-        print(data[0])
+        # print(data[0])
         # 查找指定ID的条目
         item: Dict[str, Any] = next((item for item in data if item[config.ID] == item_id), None)
         
@@ -190,3 +190,164 @@ def show_item(request, task_id, item_id):
         return render(request, 'details/showitem.html', {'task': task_record, 'item': item, 'segments': segments})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f"显示条目失败: {str(e)}"})
+
+@ensure_csrf_cookie
+def label_create_page(request, task_id):
+    return render(request, 'details/label_create.html', {'task_id': task_id})
+
+@ensure_csrf_cookie
+def label_creation(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            name = data.get('name')
+            color = data.get('color')
+            label_type = data.get('type')
+            task_id = data.get('task_id')
+
+            # 获取任务记录
+            task_record = TaskRecord.objects.get(task_id=task_id)
+            task_dirpath = task_record.task_dirpath
+
+            if label_type == "tag":
+                # 读取数据文件
+                file_path = Path(task_dirpath) / 'tag.json'
+            elif label_type == "label":
+                file_path = Path(task_dirpath) / 'label.json'
+            elif label_type == "relation":
+                file_path = Path(task_dirpath) / 'relation.json'
+            else:
+                return JsonResponse({'status': 'error', 'message': f"未知的类型: {label_type}"})
+
+            with file_path.open("r", encoding='utf-8') as f:
+                existing_data: List[Dict[str, Any]] = json.load(f)
+
+            # 检查是否存在重名
+            if any(item['name'] == name for item in existing_data):
+                return JsonResponse({'status': 'error', 'message': f"标签名已存在: {name}"})
+            
+            # 创建新标签
+            new_label = {
+                'name': name,
+                'color': color,
+                'type': label_type
+            }
+
+            existing_data.append(new_label)
+
+            with file_path.open("w", encoding='utf-8') as f:
+                json.dump(existing_data, f, ensure_ascii=False, indent=4)
+
+            return JsonResponse({'status': 'success', 'message': '标签创建成功'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': f"请求数据解析失败: {str(e)}"})
+    else:
+        return JsonResponse({'status': 'error', 'message': '只接受POST请求'})
+
+@ensure_csrf_cookie
+def get_labels(request):
+    """
+    获取指定任务下所有的tag、label、relation信息，返回json
+    GET参数: task_id
+    返回: {tags: [...], labels: [...], relations: [...]}
+    """
+    try:
+        task_id = request.GET.get('task_id')
+        if not task_id:
+            return JsonResponse({'status': 'error', 'message': '缺少task_id'})
+        # 获取任务记录
+        task_record = TaskRecord.objects.get(task_id=task_id)
+        task_dirpath = task_record.task_dirpath
+        # 读取tag、label、relation文件
+        def read_json_file(filename):
+            file_path = Path(task_dirpath) / filename
+            if not file_path.exists():
+                return []
+            with file_path.open('r', encoding='utf-8') as f:
+                try:
+                    data = json.load(f)
+                    # 补充id字段（前端需要）
+                    for idx, item in enumerate(data):
+                        if 'id' not in item:
+                            item['id'] = idx + 1
+                    return data
+                except Exception:
+                    return []
+        tags = read_json_file('tag.json')
+        labels = read_json_file('label.json')
+        relations = read_json_file('relation.json')
+        return JsonResponse({'tags': tags, 'labels': labels, 'relations': relations, 'status': 'success'})
+    except TaskRecord.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': '找不到任务ID'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'获取标签失败: {str(e)}'})
+
+@ensure_csrf_cookie
+def delete_labels(request):
+    """
+    删除指定类型的标签/文本/关系，并同步删除所有数据中引用该标签的内容。
+    POST参数: {type: tag/label/relation, ids: [id1, id2, ...], task_id: xxx}
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': '只接受POST请求'})
+    try:
+        data = json.loads(request.body)
+        label_type = data.get('type')
+        ids = data.get('ids')
+        task_id = data.get('task_id') or request.GET.get('task_id')
+        if not label_type or not ids or not task_id:
+            return JsonResponse({'status': 'error', 'message': '缺少必要参数'})
+        # 获取任务记录
+        task_record = TaskRecord.objects.get(task_id=task_id)
+        task_dirpath = task_record.task_dirpath
+        # 文件名映射
+        type2file = {'tag': 'tag.json', 'label': 'label.json', 'relation': 'relation.json'}
+        if label_type not in type2file:
+            return JsonResponse({'status': 'error', 'message': '类型错误'})
+        file_path = Path(task_dirpath) / type2file[label_type]
+        if not file_path.exists():
+            return JsonResponse({'status': 'error', 'message': '标签文件不存在'})
+        # 读取原始标签列表
+        with file_path.open('r', encoding='utf-8') as f:
+            label_list = json.load(f)
+        # 找到要删除的标签名
+        del_names = []
+        for idx, item in enumerate(label_list):
+            if str(item.get('id', idx+1)) in ids or str(idx+1) in ids:
+                del_names.append(item['name'])
+        # 删除标签
+        new_label_list = [item for idx, item in enumerate(label_list) if not (str(item.get('id', idx+1)) in ids or str(idx+1) in ids)]
+        with file_path.open('w', encoding='utf-8') as f:
+            json.dump(new_label_list, f, ensure_ascii=False, indent=4)
+
+        # 级联删除数据中引用该标签的内容
+        # 只对label和tag类型做数据清理，relation可选
+        if label_type in ('tag', 'label'):
+            data_file = Path(task_dirpath) / 'data.json'
+            if data_file.exists():
+                with data_file.open('r', encoding='utf-8') as f:
+                    data_items = json.load(f)
+                changed = False
+                for item in data_items:
+                    # 标签信息一般在item['labels']或item['tags']，需根据实际结构调整
+                    # 这里假设所有标签都在item['labels']，且有'type'字段
+                    if 'labels' in item and isinstance(item['labels'], list):
+                        before = len(item['labels'])
+                        item['labels'] = [lab for lab in item['labels'] if lab.get('type') not in del_names]
+                        if len(item['labels']) != before:
+                            changed = True
+                    # 兼容tag字段
+                    if 'tags' in item and isinstance(item['tags'], list):
+                        before = len(item['tags'])
+                        item['tags'] = [lab for lab in item['tags'] if lab.get('type') not in del_names]
+                        if len(item['tags']) != before:
+                            changed = True
+                if changed:
+                    with data_file.open('w', encoding='utf-8') as f:
+                        json.dump(data_items, f, ensure_ascii=False, indent=4)
+        # relation类型如需级联删除可在此补充
+        return JsonResponse({'status': 'success', 'message': '删除成功'})
+    except TaskRecord.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': '找不到任务ID'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'删除失败: {str(e)}'})

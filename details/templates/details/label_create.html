@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>标签编辑 - 语言学数据标注平台</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/4.6.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .card {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            margin-bottom: 1.5rem;
+        }
+        .input-group-text {
+            background-color: #f8f9fa;
+        }
+        .action-buttons .btn {
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        .form-label {
+            font-weight: 500;
+        }
+        .type-options {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .type-option {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #fff;
+        }
+        .type-option.active, .type-option:focus {
+            border-color: #007bff;
+            background-color: #e9f5ff;
+        }
+        .type-option i {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #007bff;
+        }
+        .color-preview {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 10px;
+            border: 2px solid #e2e8f0;
+        }
+        .preview-section {
+            background-color: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+            border: 1px solid #e2e8f0;
+        }
+        .preview-title {
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .preview-title i {
+            color: #007bff;
+        }
+        .preview-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 500;
+            margin-right: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .tag-icon {
+            margin-right: 8px;
+            font-size: 14px;
+        }
+        .tag-label {
+            background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
+            color: #0c4b33;
+        }
+        .tag-tag {
+            background: linear-gradient(90deg, #fa709a 0%, #fee140 100%);
+            color: #7c0a2d;
+        }
+        .tag-relation {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            color: #0d3a5c;
+        }
+        @media (max-width: 480px) {
+            .type-options {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-tags"></i> 标签编辑平台</h5>
+            <small class="text-muted">创建并管理您的标注标签</small>
+        </div>
+        <div class="card-body">
+            <form id="labelForm">
+                <input type="hidden" id="taskIdInput" value="{{ task_id }}">
+                <div class="form-group">
+                    <label for="tagName" class="form-label">标签名称</label>
+                    <input type="text" id="tagName" class="form-control" placeholder="输入标签名称" value="重要信息">
+                </div>
+                <div class="form-group">
+                    <label for="tagColor" class="form-label">标签颜色</label>
+                    <div class="d-flex align-items-center">
+                        <input type="color" id="tagColor" class="form-control" value="#4b6cb7" style="height: 50px; width: 60px; padding: 5px;">
+                        <div class="color-preview" id="colorPreview" style="background-color: #4b6cb7;"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">标签类型</label>
+                    <div class="type-options">
+                        <div class="type-option active" data-type="tag">
+                            <i class="fas fa-tag"></i>
+                            <div>标签 (Tag)</div>
+                        </div>
+                        <div class="type-option" data-type="label">
+                            <i class="fas fa-font"></i>
+                            <div>文本 (Label)</div>
+                        </div>
+                        <div class="type-option" data-type="relation">
+                            <i class="fas fa-link"></i>
+                            <div>关系 (Relation)</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group text-center mt-4">
+                    <button type="button" class="btn btn-primary btn-block" id="confirmBtn">
+                        <i class="fas fa-check-circle"></i> 确认保存
+                    </button>
+                </div>
+            </form>
+            <div class="preview-section">
+                <div class="preview-title">
+                    <i class="fas fa-eye"></i> 标签预览
+                </div>
+                <div id="tagPreview">
+                    <div class="preview-tag tag-tag">
+                        <span class="tag-icon"><i class="fas fa-tag"></i></span>
+                        <span>重要信息</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
+<script src="https://kit.fontawesome.com/a076d05399.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tagNameInput = document.getElementById('tagName');
+        const tagColorInput = document.getElementById('tagColor');
+        const colorPreview = document.getElementById('colorPreview');
+        const typeOptions = document.querySelectorAll('.type-option');
+        const tagPreview = document.getElementById('tagPreview');
+        const confirmBtn = document.getElementById('confirmBtn');
+        let selectedType = 'tag';
+        // 更新颜色预览
+        tagColorInput.addEventListener('input', function() {
+            colorPreview.style.backgroundColor = this.value;
+            updateTagPreview();
+        });
+        // 标签类型选择
+        typeOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                typeOptions.forEach(opt => opt.classList.remove('active'));
+                this.classList.add('active');
+                selectedType = this.dataset.type;
+                updateTagPreview();
+            });
+        });
+        // 更新标签名称
+        tagNameInput.addEventListener('input', updateTagPreview);
+        // 更新标签预览
+        function updateTagPreview() {
+            const tagName = tagNameInput.value || '新标签';
+            const tagColor = tagColorInput.value;
+            let typeClass, iconClass, text;
+            switch(selectedType) {
+                case 'tag':
+                    typeClass = 'tag-tag';
+                    iconClass = 'fas fa-tag';
+                    text = '标签';
+                    break;
+                case 'label':
+                    typeClass = 'tag-label';
+                    iconClass = 'fas fa-font';
+                    text = '文本';
+                    break;
+                case 'relation':
+                    typeClass = 'tag-relation';
+                    iconClass = 'fas fa-link';
+                    text = '关系';
+                    break;
+            }
+            tagPreview.innerHTML = `
+                <div class="preview-tag ${typeClass}" style="background: ${tagColor}">
+                    <span class="tag-icon"><i class="${iconClass}"></i></span>
+                    <span>${tagName}</span>
+                </div>
+                <p style="margin-top: 15px; color: #718096; font-size: 14px;">
+                    类型：${text} | 颜色：${tagColor}
+                </p>
+            `;
+        }
+        // 获取CSRF令牌
+        function getCsrfToken() {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken=')) {
+                        cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // 确认按钮点击事件
+        confirmBtn.addEventListener('click', function() {
+            const tagName = tagNameInput.value;
+            const tagColor = tagColorInput.value;
+            if(!tagName) {
+                alert('请输入标签名称');
+                return;
+            }
+            // 发送AJAX请求到Django后端保存label，并传递task_id
+            const taskId = document.getElementById('taskIdInput').value;
+            $.ajax({
+                url: '/details/label_creation/', // 请根据实际后端URL调整
+                type: 'POST',
+                headers: {
+                    'X-CSRFToken': getCsrfToken()
+                },
+                data: JSON.stringify({
+                    'name': tagName,
+                    'color': tagColor,
+                    'type': selectedType,
+                    'task_id': taskId
+                }),
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function(response) {
+                    confirmBtn.innerHTML = '<i class="fas fa-check"></i> 保存成功！';
+                    confirmBtn.classList.remove('btn-primary');
+                    confirmBtn.classList.add('btn-success');
+                    setTimeout(() => {
+                        confirmBtn.innerHTML = '<i class="fas fa-check-circle"></i> 确认保存';
+                        confirmBtn.classList.remove('btn-success');
+                        confirmBtn.classList.add('btn-primary');
+                    }, 2000);
+                    if(response.status === 'success'){
+                        alert('标签保存成功！');
+                        location.reload(); // 新增：保存成功后刷新页面
+                    } else {
+                        alert('保存失败: ' + (response.message || '未知错误'));
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('保存请求出错: ' + error);
+                }
+            });
+        });
+        // 初始化预览
+        updateTagPreview();
+    });
+</script>
+</body>
+</html>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-tag"></i> 标签 (Tag)</span>
+                    <button class="btn btn-danger btn-sm" id="deleteTagBtn"><i class="fas fa-trash"></i> 删除所选</button>
+                </div>
+                <ul class="list-group list-group-flush" id="tagList">
+                    <!-- 标签项将通过JS动态填充 -->
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-font"></i> 文本 (Label)</span>
+                    <button class="btn btn-danger btn-sm" id="deleteLabelBtn"><i class="fas fa-trash"></i> 删除所选</button>
+                </div>
+                <ul class="list-group list-group-flush" id="labelList">
+                    <!-- 文本项将通过JS动态填充 -->
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-link"></i> 关系 (Relation)</span>
+                    <button class="btn btn-danger btn-sm" id="deleteRelationBtn"><i class="fas fa-trash"></i> 删除所选</button>
+                </div>
+                <ul class="list-group list-group-flush" id="relationList">
+                    <!-- 关系项将通过JS动态填充 -->
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+// 用于渲染标签/文本/关系列表
+function renderList(list, containerId) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    list.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex align-items-center';
+        li.innerHTML = `
+            <input type="checkbox" class="mr-2 select-item" data-id="${item.id}">
+            <span class="badge mr-2" style="background:${item.color};">&nbsp;</span>
+            <span>${item.name}</span>
+        `;
+        container.appendChild(li);
+    });
+}
+
+// 获取CSRF Token
+function getCsrfToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken=')) {
+                cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// 从后端获取所有标签/文本/关系
+function fetchAllLabels() {
+    const taskId = document.getElementById('taskIdInput').value;
+    $.ajax({
+        url: '/details/get_labels/', // 后端需实现该接口，返回json
+        type: 'GET',
+        data: {task_id: taskId},
+        dataType: 'json',
+        success: function(data) {
+            renderList(data.tags || [], 'tagList');
+            renderList(data.labels || [], 'labelList');
+            renderList(data.relations || [], 'relationList');
+        },
+        error: function() {
+            // 可选：显示错误信息
+            alert('获取标签信息失败，请刷新页面重试');
+            console.error('Failed to fetch labels:', error);
+            // 为列表添加空状态提示
+            document.getElementById('tagList').innerHTML = '<li class="list-group-item text-center text-muted">加载失败</li>';
+            document.getElementById('labelList').innerHTML = '<li class="list-group-item text-center text-muted">加载失败</li>';
+            document.getElementById('relationList').innerHTML = '<li class="list-group-item text-center text-muted">加载失败</li>';
+        }
+    });
+}
+
+fetchAllLabels();
+
+function getSelectedIds(containerId) {
+    const checkboxes = document.querySelectorAll(`#${containerId} .select-item:checked`);
+    return Array.from(checkboxes).map(cb => cb.getAttribute('data-id'));
+}
+
+// 删除操作
+function deleteItems(type) {
+    let containerId, msg;
+    if(type === 'tag') { containerId = 'tagList'; msg = '标签'; }
+    if(type === 'label') { containerId = 'labelList'; msg = '文本'; }
+    if(type === 'relation') { containerId = 'relationList'; msg = '关系'; }
+    const ids = getSelectedIds(containerId);
+    if(ids.length === 0) { alert('请选择要删除的' + msg); return; }
+    if(!confirm('确定要删除所选' + msg + '吗？')) return;
+    $.ajax({
+        url: '/details/delete_labels/', // 后端需实现该接口
+        type: 'POST',
+        headers: {'X-CSRFToken': getCsrfToken()},
+        data: JSON.stringify({
+            type: type, 
+            ids: ids,
+            task_id: document.getElementById('taskIdInput').value
+        }),
+        contentType: 'application/json',
+        dataType: 'json',
+        success: function(res) {
+            if(res.status === 'success') {
+                fetchAllLabels();
+            } else {
+                alert('删除失败: ' + (res.message || '未知错误'));
+            }
+        },
+        error: function() {
+            alert('删除请求出错');
+        }
+    });
+}
+
+document.getElementById('deleteTagBtn').onclick = function() { deleteItems('tag'); };
+document.getElementById('deleteLabelBtn').onclick = function() { deleteItems('label'); };
+document.getElementById('deleteRelationBtn').onclick = function() { deleteItems('relation'); };
+</script>
