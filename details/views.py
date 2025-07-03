@@ -4,7 +4,7 @@ from django.shortcuts import render
 from . import utils, config
 from listing.models import TaskRecord
 from django.http import HttpResponse, JsonResponse, FileResponse
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from pathlib import Path
 import json
 import zipfile
@@ -180,14 +180,56 @@ def show_item(request, task_id, item_id):
         for label in sorted_labels:
             start = label[config.START]
             end = label[config.END]
-            if last_end < start:
-                segments.append({'text': text[last_end:start], 'label': None})
-            segments.append({'text': text[start:end], 'label': label})
+            segments.append({'text': text[last_end:start], 'label': None, 'start': last_end, 'end': start})
+            segments.append({'text': text[start:end], 'label': label, 'start': start, 'end': end})
             last_end = end
         if last_end < len(text):
-            segments.append({'text': text[last_end:], 'label': None})
+            segments.append({'text': text[last_end:], 'label': None, 'start': last_end, 'end': len(text)})
 
-        return render(request, 'details/showitem.html', {'task': task_record, 'item': item, 'segments': segments})
+        # 读取tag, label, relation信息
+        def read_json_file(filename):
+            file_path = Path(task_dirpath) / filename
+            if not file_path.exists():
+                return []
+            with file_path.open('r', encoding='utf-8') as f:
+                try:
+                    data = json.load(f)
+                    return data
+                except Exception:
+                    return []
+
+        tags = read_json_file('tag.json')
+        labels = read_json_file('label.json')
+        relations = read_json_file('relation.json')
+
+        # 构建类型到颜色的映射（label.json 里每个 label 需有 name 和 color 字段）
+        label_type2color = {l['name']: l.get('color', '#3498db') for l in labels}
+
+        # 根据标签的起始和终止位置切分文本，并为每个有 label 的 segment 加入 color
+        text = item[config.TEXT]
+        segments = []
+        last_end = 0
+        for label in sorted_labels:
+            start = label[config.START]
+            end = label[config.END]
+            color = label_type2color.get(label['type'], '#3498db')
+            if last_end < start:
+                segments.append({'text': text[last_end:start], 'label': None, 'start': last_end, 'end': start})
+            segments.append({'text': text[start:end], 'label': label, 'start': start, 'end': end, 'color': color})
+            last_end = end
+        if last_end < len(text):
+            segments.append({'text': text[last_end:], 'label': None, 'start': last_end, 'end': len(text)})
+        # 传递原始文本和segments（含原始索引、颜色）到前端
+        return render(request, 'details/showitem.html', {
+            'task': task_record,
+            'item': item,
+            'segments': segments,
+            'tags': tags,
+            'labels': labels,
+            'relations': relations,
+            'original_text': text
+        })
+
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f"显示条目失败: {str(e)}"})
 
@@ -351,3 +393,66 @@ def delete_labels(request):
         return JsonResponse({'status': 'error', 'message': '找不到任务ID'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'删除失败: {str(e)}'})
+
+@csrf_exempt
+def add_label(request, task_id, item_id):
+    """
+    处理前端选中一段文本后点击标注信息的请求，
+    将标注信息添加到对应的data.json条目和label.json/tag.json/relation.json中。
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': '只接受POST请求'})
+    try:
+        data = json.loads(request.body)
+        label_type = data.get('type')  # 'label'/'tag'/'relation'
+        name = data.get('name')
+        color = data.get('color')
+        start = data.get('start')
+        end = data.get('end')
+        # 获取任务和条目
+        task_record = TaskRecord.objects.get(task_id=task_id)
+        task_dirpath = task_record.task_dirpath
+        data_file = Path(task_dirpath) / 'data.json'
+        with data_file.open('r', encoding='utf-8') as f:
+            items = json.load(f)
+        # 找到对应item
+        item = next((item for item in items if item[config.ID] == item_id), None)
+        if not item:
+            return JsonResponse({'status': 'error', 'message': '未找到指定条目'})
+        # 构造新label对象
+        new_label = {
+            'type': name,
+            # 'color': color, # 不需要传递color字段
+            'start': start,
+            'end': end
+        }
+        # 添加到item的labels/tag/relation字段
+        if label_type == 'label':
+            if config.LABELS not in item:
+                item[config.LABELS] = []
+            # Assign an ID to the new label
+            label_id = 0 if not item[config.LABELS] else max(lab.get('id', 0) for lab in item[config.LABELS]) + 1
+            new_label['id'] = label_id
+            item[config.LABELS].append(new_label)
+        elif label_type == 'tag':
+            if 'tags' not in item:
+                item[config.TAGS] = []
+            # Assign an ID to the new tag
+            tag_id = 0 if not item[config.TAGS] else max(tag.get('id', 0) for tag in item[config.TAGS]) + 1
+            new_label['id'] = tag_id
+            item[config.TAGS].append(new_label)
+        elif label_type == 'relation':
+            if 'relations' not in item:
+                item[config.RELATIONS] = []
+            # Assign an ID to the new relation
+            relation_id = 0 if not item[config.RELATIONS] else max(rel.get('id', 0) for rel in item[config.RELATIONS]) + 1
+            new_label['id'] = relation_id
+            item[config.RELATIONS].append(new_label)
+        else:
+            return JsonResponse({'status': 'error', 'message': '未知标注类型'})
+        # 保存回data.json
+        with data_file.open('w', encoding='utf-8') as f:
+            json.dump(items, f, ensure_ascii=False, indent=4)
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'添加标注失败: {str(e)}'})
