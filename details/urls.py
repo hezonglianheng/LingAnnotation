@@ -20,4 +20,7 @@ urlpatterns = [
     path('label_creation/', views.label_creation, name='label_creation'), 
     path('get_labels/', views.get_labels, name='get_labels'),
     path('remove_labels/', views.remove_labels, name='remove_labels'),
+    # tag二值切换接口
+    path('showitem/<int:task_id>/<int:item_id>/add_tag/', views.add_tag, name='add_tag'),
+    path('showitem/<int:task_id>/<int:item_id>/delete_tag/', views.delete_tag, name='delete_tag'),
 ]

@@ -203,7 +203,7 @@ def show_item(request, task_id, item_id):
         relations = read_json_file('relation.json')
 
         # 构建类型到颜色的映射（label.json 里每个 label 需有 name 和 color 字段）
-        label_type2color = {l['name']: l.get('color', '#3498db') for l in labels}
+        label_type2color = {l['name']: l.get('color', '#39c5bb') for l in labels}
 
         # 根据标签的起始和终止位置切分文本，并为每个有 label 的 segment 加入 color
         text = item[config.TEXT]
@@ -212,7 +212,7 @@ def show_item(request, task_id, item_id):
         for label in sorted_labels:
             start = label[config.START]
             end = label[config.END]
-            color = label_type2color.get(label['type'], '#3498db')
+            color = label_type2color.get(label['type'], '#39c5bb')
             if last_end < start:
                 segments.append({'text': text[last_end:start], 'label': None, 'start': last_end, 'end': start})
             segments.append({'text': text[start:end], 'label': label, 'start': start, 'end': end, 'color': color})
@@ -220,6 +220,8 @@ def show_item(request, task_id, item_id):
         if last_end < len(text):
             segments.append({'text': text[last_end:], 'label': None, 'start': last_end, 'end': len(text)})
         # 传递原始文本和segments（含原始索引、颜色）到前端
+        # 获取当前item的tags类型列表（只存type字符串）
+        item_tags = [t['type'] for t in item.get('tags', [])] if 'tags' in item else []
         return render(request, 'details/showitem.html', {
             'task': task_record,
             'item': item,
@@ -227,8 +229,64 @@ def show_item(request, task_id, item_id):
             'tags': tags,
             'labels': labels,
             'relations': relations,
-            'original_text': text
+            'original_text': text,
+            'item_tags': item_tags
         })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f"显示条目失败: {str(e)}"})
+
+# 针对整条语料的tag二值切换：添加tag
+@csrf_exempt
+def add_tag(request, task_id, item_id):
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': '只接受POST请求'})
+    try:
+        data = json.loads(request.body)
+        tag_type = data.get('type')
+        color = data.get('color')
+        task_record = TaskRecord.objects.get(task_id=task_id)
+        task_dirpath = task_record.task_dirpath
+        data_file = Path(task_dirpath) / 'data.json'
+        with data_file.open('r', encoding='utf-8') as f:
+            items = json.load(f)
+        item = next((item for item in items if item[config.ID] == item_id), None)
+        if not item:
+            return JsonResponse({'status': 'error', 'message': '未找到指定条目'})
+        if 'tags' not in item:
+            item['tags'] = []
+        if any(t['type'] == tag_type for t in item['tags']):
+            return JsonResponse({'status': 'success'})
+        tag_id = 0 if not item['tags'] else max(t.get('id', 0) for t in item['tags']) + 1
+        item['tags'].append({'type': tag_type, 'color': color, 'id': tag_id})
+        with data_file.open('w', encoding='utf-8') as f:
+            json.dump(items, f, ensure_ascii=False, indent=4)
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'添加tag失败: {str(e)}'})
+
+# 针对整条语料的tag二值切换：删除tag
+@csrf_exempt
+def delete_tag(request, task_id, item_id):
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': '只接受POST请求'})
+    try:
+        data = json.loads(request.body)
+        tag_type = data.get('type')
+        task_record = TaskRecord.objects.get(task_id=task_id)
+        task_dirpath = task_record.task_dirpath
+        data_file = Path(task_dirpath) / 'data.json'
+        with data_file.open('r', encoding='utf-8') as f:
+            items = json.load(f)
+        item = next((item for item in items if item[config.ID] == item_id), None)
+        if not item:
+            return JsonResponse({'status': 'error', 'message': '未找到指定条目'})
+        before = len(item.get('tags', []))
+        item['tags'] = [t for t in item.get('tags', []) if t['type'] != tag_type]
+        with data_file.open('w', encoding='utf-8') as f:
+            json.dump(items, f, ensure_ascii=False, indent=4)
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'删除tag失败: {str(e)}'})
 
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f"显示条目失败: {str(e)}"})

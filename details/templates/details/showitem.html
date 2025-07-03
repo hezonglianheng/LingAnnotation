@@ -155,13 +155,77 @@
                             <strong>标签（Tag）:</strong>
                             <ul id="tag-list">
                                 {% for tag in tags %}
-                                    <li style="color: {{ tag.color }}; font-weight: bold; cursor:pointer;" onclick="applyLabel('tag', '{{ tag.name }}', '{{ tag.color }}')">
-                                        <span style="background: {{ tag.color }}; color: #fff; border-radius: 4px; padding: 2px 8px;">{{ tag.name }}</span>
-                                    </li>
+                                    {% if tag.name in item_tags %}
+                                        <li class="tag-item" data-tag="{{ tag.name }}" style="color: {{ tag.color }}; font-weight: bold; cursor:pointer;" onclick="toggleTag('{{ tag.name }}', '{{ tag.color }}')">
+                                            <span style="background: {{ tag.color }}; color: #fff; border-radius: 4px; padding: 2px 8px;">{{ tag.name }} <i class="fas fa-check"></i></span>
+                                            <span class="ml-2 text-success">是</span>
+                                        </li>
+                                    {% else %}
+                                        <li class="tag-item" data-tag="{{ tag.name }}" style="color: #aaa; font-weight: normal; cursor:pointer;" onclick="toggleTag('{{ tag.name }}', '{{ tag.color }}')">
+                                            <span style="background: #ccc; color: #fff; border-radius: 4px; padding: 2px 8px;">{{ tag.name }}</span>
+                                            <span class="ml-2 text-muted">否</span>
+                                        </li>
+                                    {% endif %}
                                 {% empty %}
                                     <li class="text-muted">无</li>
                                 {% endfor %}
                             </ul>
+
+<script>
+    // tag二值切换
+    function toggleTag(tagName, tagColor) {
+        // 获取task_id和item_id
+        const pathMatch = window.location.pathname.match(/showitem\/(\d+)\/(\d+)/);
+        if (!pathMatch) {
+            alert('URL解析失败，无法获取任务ID和条目ID');
+            return;
+        }
+        const task_id = pathMatch[1];
+        const item_id = pathMatch[2];
+        // 判断当前是否已标注
+        const itemTags = {{ item_tags|safe }};
+        const hasTag = itemTags.includes(tagName);
+        if (hasTag) {
+            // 已有则删除
+            $.ajax({
+                url: `/details/showitem/${task_id}/${item_id}/delete_tag/`,
+                type: 'POST',
+                headers: {'X-CSRFToken': getCookie('csrftoken')},
+                contentType: 'application/json',
+                data: JSON.stringify({type: tagName}),
+                success: function(res) {
+                    if (res.status === 'success') {
+                        window.location.reload();
+                    } else {
+                        alert('删除tag失败：' + res.message);
+                    }
+                },
+                error: function() {
+                    alert('删除tag请求失败');
+                }
+            });
+        } else {
+            // 没有则添加
+            $.ajax({
+                url: `/details/showitem/${task_id}/${item_id}/add_tag/`,
+                type: 'POST',
+                headers: {'X-CSRFToken': getCookie('csrftoken')},
+                contentType: 'application/json',
+                data: JSON.stringify({type: tagName, color: tagColor}),
+                success: function(res) {
+                    if (res.status === 'success') {
+                        window.location.reload();
+                    } else {
+                        alert('添加tag失败：' + res.message);
+                    }
+                },
+                error: function() {
+                    alert('添加tag请求失败');
+                }
+            });
+        }
+    }
+</script>
                             <strong>标注类型（Label）:</strong>
                             <ul id="label-list">
                                 {% for label in labels %}
