@@ -325,7 +325,7 @@ def get_labels(request):
         return JsonResponse({'status': 'error', 'message': f'获取标签失败: {str(e)}'})
 
 @ensure_csrf_cookie
-def delete_labels(request):
+def remove_labels(request):
     """
     删除指定类型的标签/文本/关系，并同步删除所有数据中引用该标签的内容。
     POST参数: {type: tag/label/relation, ids: [id1, id2, ...], task_id: xxx}
@@ -456,3 +456,40 @@ def add_label(request, task_id, item_id):
         return JsonResponse({'status': 'success'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'添加标注失败: {str(e)}'})
+
+@csrf_exempt
+def delete_label(request, task_id, item_id):
+    """
+    删除指定item下的某个label（通过start、end、type唯一定位）。
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': '只接受POST请求'})
+    try:
+        data = json.loads(request.body)
+        start = int(data.get('start'))
+        end = int(data.get('end'))
+        label_type = data.get('type')
+        # 获取任务和条目
+        task_record = TaskRecord.objects.get(task_id=task_id)
+        task_dirpath = task_record.task_dirpath
+        data_file = Path(task_dirpath) / 'data.json'
+        with data_file.open('r', encoding='utf-8') as f:
+            items = json.load(f)
+        # 找到对应item
+        item = next((item for item in items if item[config.ID] == item_id), None)
+        if not item:
+            return JsonResponse({'status': 'error', 'message': '未找到指定条目'})
+        # 删除label
+        before = len(item[config.LABELS])
+        item[config.LABELS] = [
+            lab for lab in item[config.LABELS]
+            if not (lab['start'] == start and lab['end'] == end and lab['type'] == label_type)
+        ]
+        if len(item[config.LABELS]) == before:
+            return JsonResponse({'status': 'error', 'message': '未找到要删除的标注'})
+        # 保存
+        with data_file.open('w', encoding='utf-8') as f:
+            json.dump(items, f, ensure_ascii=False, indent=4)
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'删除标注失败: {str(e)}'})

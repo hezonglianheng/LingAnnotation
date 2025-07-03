@@ -142,6 +142,9 @@
                             <button class="btn btn-secondary btn-sm" onclick="close()">
                                 <i class="fas fa-arrow-left"></i> 关闭页面
                             </button>
+            <button class="btn btn-danger btn-sm" onclick="deleteLabel()">
+                <i class="fas fa-trash"></i> 删除标注
+            </button>
                         </div>
                     </div>
                     <div class="card">
@@ -207,6 +210,62 @@
     // 返回列表
     function close() {
         window.close();
+    }
+
+    // 记录选中的标注
+    let selectedLabelInfo = null;
+    document.querySelectorAll('.underlined').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+            document.querySelectorAll('.underlined').forEach(x => x.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedLabelInfo = {
+                start: el.getAttribute('data-start'),
+                end: el.getAttribute('data-end'),
+                type: el.querySelector('.label').innerText
+            };
+            e.stopPropagation();
+        });
+    });
+    // 点击空白处取消选中
+    document.body.addEventListener('click', function(e) {
+        if (!e.target.classList.contains('underlined')) {
+            document.querySelectorAll('.underlined').forEach(x => x.classList.remove('selected'));
+            selectedLabelInfo = null;
+        }
+    });
+
+    // 删除标注
+    function deleteLabel() {
+        if (!selectedLabelInfo) {
+            alert('请先点击选中要删除的标注！');
+            return;
+        }
+        if (!confirm('确定要删除该标注吗？')) return;
+        // 获取task_id和item_id
+        const pathMatch = window.location.pathname.match(/showitem\/(\d+)\/(\d+)/);
+        if (!pathMatch) {
+            alert('URL解析失败，无法获取任务ID和条目ID');
+            return;
+        }
+        const task_id = pathMatch[1];
+        const item_id = pathMatch[2];
+        $.ajax({
+            url: `/details/showitem/${task_id}/${item_id}/delete_label/`,
+            type: 'POST',
+            headers: {'X-CSRFToken': getCookie('csrftoken')},
+            contentType: 'application/json',
+            data: JSON.stringify(selectedLabelInfo),
+            success: function(res) {
+                if (res.status === 'success') {
+                    window.location.reload();
+                } else {
+                    alert('删除失败：' + res.message);
+                }
+            },
+            error: function() {
+                alert('删除请求失败');
+            }
+        });
     }
 
     // 记录选中的文本区间（基于原始字符串索引）
@@ -298,6 +357,13 @@
 
     // 输出原始文本到JS变量（如有需要可用）
     const originalText = "{{ original_text|escapejs }}";
+</script>
+<style>
+.selected {
+    background: #ffe0e0 !important;
+    box-shadow: 0 0 0 2px #e74c3c;
+}
+</style>
 </script>
 </body>
 </html>
