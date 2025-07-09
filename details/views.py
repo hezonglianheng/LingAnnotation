@@ -288,18 +288,16 @@ def delete_tag(request, task_id, item_id):
         item = next((item for item in items if item[config.ID] == item_id), None)
         if not item:
             return JsonResponse({'status': 'error', 'message': '未找到指定条目'})
-        before = len(item.get('tags', []))
+        
+        # 仅删除指定类型的tag，不执行级联删除
         item['tags'] = [t for t in item.get('tags', []) if t['type'] != tag_type]
+        
         with data_file.open('w', encoding='utf-8') as f:
             json.dump(items, f, ensure_ascii=False, indent=4)
         return JsonResponse({'status': 'success'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'删除tag失败: {str(e)}'})
 
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': f"显示条目失败: {str(e)}"})
-
-@ensure_csrf_cookie
 def label_create_page(request, task_id):
     return render(request, 'details/label_create.html', {'task_id': task_id})
 
@@ -437,19 +435,45 @@ def remove_labels(request):
                     data_items = json.load(f)
                 changed = False
                 for item in data_items:
+                    # 收集要删除的对象ID，用于级联删除关系
+                    deleted_object_ids = []
+                    
                     # 标签信息一般在item['labels']或item['tags']，需根据实际结构调整
                     # 这里假设所有标签都在item['labels']，且有'type'字段
                     if 'labels' in item and isinstance(item['labels'], list):
                         before = len(item['labels'])
+                        # 收集要删除的label的ID
+                        for lab in item['labels']:
+                            if lab.get('type') in del_names:
+                                deleted_object_ids.append(('label', lab.get('id')))
+                        
                         item['labels'] = [lab for lab in item['labels'] if lab.get('type') not in del_names]
                         if len(item['labels']) != before:
                             changed = True
+                    
                     # 兼容tag字段
                     if 'tags' in item and isinstance(item['tags'], list):
                         before = len(item['tags'])
+                        # 收集要删除的tag的ID
+                        for tag in item['tags']:
+                            if tag.get('type') in del_names:
+                                deleted_object_ids.append(('tag', tag.get('id')))
+                        
                         item['tags'] = [lab for lab in item['tags'] if lab.get('type') not in del_names]
                         if len(item['tags']) != before:
                             changed = True
+                    
+                    # 级联删除与这些对象相关的关系
+                    if 'relations' in item and isinstance(item['relations'], list) and deleted_object_ids:
+                        original_relations = item['relations'][:]
+                        for object_type, object_id in deleted_object_ids:
+                            if object_id is not None:
+                                item['relations'] = utils.remove_relations_by_object(
+                                    item['relations'], object_type, object_id
+                                )
+                        if len(item['relations']) != len(original_relations):
+                            changed = True
+                
                 if changed:
                     with data_file.open('w', encoding='utf-8') as f:
                         json.dump(data_items, f, ensure_ascii=False, indent=4)
@@ -526,7 +550,7 @@ def add_label(request, task_id, item_id):
 @csrf_exempt
 def delete_label(request, task_id, item_id):
     """
-    删除指定item下的某个label（通过start、end、type唯一定位）。
+    删除指定item下的某个label（通过start、end、type唯一定位），并级联删除相关关系。
     """
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': '只接受POST请求'})
@@ -545,6 +569,19 @@ def delete_label(request, task_id, item_id):
         item = next((item for item in items if item[config.ID] == item_id), None)
         if not item:
             return JsonResponse({'status': 'error', 'message': '未找到指定条目'})
+        
+        # 找到要删除的label并获取其ID
+        label_to_delete = None
+        for lab in item[config.LABELS]:
+            if (lab['start'] == start and lab['end'] == end and lab['type'] == label_type):
+                label_to_delete = lab
+                break
+        
+        if not label_to_delete:
+            return JsonResponse({'status': 'error', 'message': '未找到要删除的标注'})
+        
+        label_id = label_to_delete.get('id')
+        
         # 删除label
         before = len(item[config.LABELS])
         item[config.LABELS] = [
@@ -553,6 +590,13 @@ def delete_label(request, task_id, item_id):
         ]
         if len(item[config.LABELS]) == before:
             return JsonResponse({'status': 'error', 'message': '未找到要删除的标注'})
+        
+        # 级联删除相关关系
+        if label_id is not None and 'relations' in item:
+            item['relations'] = utils.remove_relations_by_object(
+                item['relations'], 'label', label_id
+            )
+        
         # 保存
         with data_file.open('w', encoding='utf-8') as f:
             json.dump(items, f, ensure_ascii=False, indent=4)
@@ -679,7 +723,7 @@ def add_relation(request, task_id, item_id):
 @csrf_exempt
 def delete_relation(request, task_id, item_id):
     """
-    删除指定item下的某个relation（通过relation_id唯一定位）。
+    删除指定item下的某个relation（通过relation_id唯一定位），并级联删除相关关系。
     """
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': '只接受POST请求'})
@@ -689,6 +733,12 @@ def delete_relation(request, task_id, item_id):
         
         if relation_id is None:
             return JsonResponse({'status': 'error', 'message': '缺少关系ID'})
+        
+        # 确保relation_id是整数类型
+        try:
+            relation_id = int(relation_id)
+        except (ValueError, TypeError):
+            return JsonResponse({'status': 'error', 'message': '关系ID格式错误'})
         
         # 获取任务和条目
         task_record = TaskRecord.objects.get(task_id=task_id)
@@ -708,13 +758,33 @@ def delete_relation(request, task_id, item_id):
             return JsonResponse({'status': 'error', 'message': '该条目没有关系数据'})
         
         before_count = len(item['relations'])
+        
+        # 检查指定的关系是否存在
+        target_relation_exists = any(
+            rel.get('id') == relation_id or str(rel.get('id', '')) == str(relation_id) 
+            for rel in item['relations']
+        )
+        
+        if not target_relation_exists:
+            # 提供更详细的错误信息
+            relation_ids = [rel.get('id') for rel in item['relations']]
+            return JsonResponse({
+                'status': 'error', 
+                'message': f'未找到指定关系 ID={relation_id}。现有关系ID: {relation_ids}'
+            })
+        
+        # 第一步：使用utils函数删除与指定关系关联的其他关系（级联删除）
+        item['relations'] = utils.remove_relations_by_object(
+            item['relations'], 'relation', relation_id
+        )
+        
+        # 第二步：删除指定ID的关系本身
         item['relations'] = [
-            rel for rel in item['relations']
-            if rel.get('id') != relation_id
+            rel for rel in item['relations'] 
+            if rel.get('id') != relation_id and str(rel.get('id', '')) != str(relation_id)
         ]
         
-        if len(item['relations']) == before_count:
-            return JsonResponse({'status': 'error', 'message': '未找到指定关系'})
+        after_count = len(item['relations'])
         
         # 保存
         with data_file.open('w', encoding='utf-8') as f:

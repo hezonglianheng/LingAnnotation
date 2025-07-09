@@ -456,7 +456,7 @@
     <div class="content-container">
         <div class="section-title">语料原文</div>
         <div class="text-selection-info" style="margin-bottom:10px;font-size:0.9rem;display:none;background:#f5f5f5;padding:8px 12px;border-radius:4px;border-left:3px solid #1a73e8;">
-            <i class="fas fa-mouse-pointer"></i> <span id="selectionStatus">请在文本中选择要标注的内容</span>
+            <i class="fas fa-mouse-pointer"></i> <span id="selectionStatus">请在文本中选择要进行标注的文本片段，悬停在已有标注的文本片段下方可以查看其标注结果</span>
         </div>
         <div class="original-text" id="originalText">
             <p>
@@ -480,9 +480,91 @@
                 </div>
             {% endfor %}
         </div>
+        
+        <!-- Tag标签部分 -->
         <div class="section-title">可用标签类型</div>
+        <div class="alert alert-warning" style="font-size:0.9rem;background-color:#fff3cd;border-color:#ffeaa7;">
+            <i class="fas fa-tags"></i> 标签：对整条语料进行分类标记，不需要选择特定文本内容，直接点击即可添加或移除
+        </div>
+        <ul class="list-inline">
+            {% for tag in tags %}
+                <li class="list-inline-item" style="margin-bottom:12px;">
+                    <button class="btn btn-outline-warning btn-sm tag-btn" 
+                            onclick="toggleTag('{{ tag.name }}', '{{ tag.color }}')" 
+                            data-tag-type="{{ tag.name }}"
+                            style="border-color:{{ tag.color }};position:relative;overflow:hidden;transition:all 0.3s ease;
+                                   {% if tag.name in item_tags %}background-color:{{ tag.color }};color:white;{% endif %}">
+                        <span style="{% if tag.name not in item_tags %}background: {{ tag.color }}; color: #fff;{% else %}color:inherit;{% endif %} border-radius: 4px; padding: 2px 8px;">{{ tag.name }}</span>
+                        <span style="display:block;font-size:10px;margin-top:3px;color:{% if tag.name in item_tags %}white{% else %}#666{% endif %};">
+                            {% if tag.name in item_tags %}已选中{% else %}点击选择{% endif %}
+                        </span>
+                    </button>
+                </li>
+            {% endfor %}
+        </ul>
+        
+        <style>
+            .tag-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            }
+            .tag-btn:before {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+                transition: left 0.6s ease;
+            }
+            .tag-btn:hover:before {
+                left: 100%;
+            }
+        </style>
+        
+        <div class="section-title">语料标签详情</div>
+        <div class="tags-list" id="tagsList">
+            {% for tag_item in item.tags %}
+                {% with color="#f39c12" %}
+                    {% for tag in tags %}
+                        {% if tag.name == tag_item.type %}
+                            {% with color=tag.color %}{% endwith %}
+                        {% endif %}
+                    {% endfor %}
+                    <div class="tag-card" data-id="{{ tag_item.id }}" style="background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px 15px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; border-left: 4px solid {{ color }};">
+                        <div class="tag-info-section" style="display: flex; align-items: center; flex: 1;">
+                            <span class="tag-type" style="background: {{ color }}; color: white; padding: 6px 14px; border-radius: 20px; font-weight: 600; margin-right: 15px; font-size: 0.95rem;">
+                                <i class="fas fa-tag"></i> {{ tag_item.type }}
+                            </span>
+                            <span style="color: #5f6368; font-size: 0.9rem;">
+                                <i class="fas fa-file-alt"></i> 整条语料标记
+                            </span>
+                        </div>
+                        <div class="tag-meta-section" style="display: flex; flex-direction: column; align-items: flex-end; margin-right: 15px;">
+                            <span class="tag-id" style="font-size: 0.8rem; color: #1a73e8; background: #e8f0fe; padding: 2px 8px; border-radius: 12px; font-weight: 500; margin-bottom: 4px;">
+                                <i class="fas fa-hashtag"></i> {{ tag_item.id|default_if_none:"未知" }}
+                            </span>
+                        </div>
+                        <div class="action-btns">
+                            <button class="btn btn-danger btn-sm delete-tag-btn" 
+                                    onclick="deleteTag('{{ tag_item.type }}', this)"
+                                    style="padding: 4px 8px; font-size: 0.8rem;">
+                                <i class="fas fa-trash"></i> 删除
+                            </button>
+                        </div>
+                    </div>
+                {% endwith %}
+            {% empty %}
+                <div class="text-muted" style="padding: 20px; text-align: center; background: #f8f9fa; border: 1px dashed #ddd; border-radius: 8px;">
+                    <i class="fas fa-tags"></i> 当前语料暂无标签
+                </div>
+            {% endfor %}
+        </div>
+        
+        <div class="section-title">可用文本片段标注类型</div>
         <div class="alert alert-info" style="font-size:0.9rem;background-color:#e8f4f8;border-color:#b8e0ee;">
-            <i class="fas fa-info-circle"></i> 使用方法：先在文本中选中要标注的内容，再点击下方标签类型完成标注
+            <i class="fas fa-info-circle"></i> 使用方法：先在文本中选中要标注的内容，再点击下方文本片段标注类型完成标注
         </div>
         <ul class="list-inline">
             {% for label in labels %}
@@ -515,7 +597,8 @@
                 left: 100%;
             }
         </style>
-        <div class="section-title">标签标注</div>
+        
+        <div class="section-title">已有文本片段标注</div>
         <div class="labels-list" id="labelsList">
             {% for lab in item.labels %}
                 {% with color="#39c5bb" %}
@@ -811,6 +894,7 @@
             <h4 style="margin-bottom:15px;color:#333;">确认删除标注</h4>
             <p style="margin-bottom:20px;color:#666;">
                 您确定要删除标注 "<strong>${labelText}</strong>" (${type}) 吗？<br>
+                请注意：与该文本片段标注相关的关系将被一并删除！<br>
                 <small style="color:#999;">位置: ${start} - ${end}</small>
             </p>
             <div style="display:flex;gap:10px;justify-content:center;">
@@ -1272,6 +1356,196 @@
         }
     });
 
+    // Tag标签切换函数
+    function toggleTag(tagType, tagColor) {
+        const task_id = "{{ task.task_id }}";
+        const item_id = "{{ item.id }}";
+        const button = document.querySelector(`[data-tag-type="${tagType}"]`);
+        
+        // 检查当前tag是否已选中
+        const isSelected = button.style.backgroundColor && button.style.backgroundColor !== '';
+        
+        // 显示加载状态
+        const originalText = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+        
+        // 根据当前状态决定是添加还是删除
+        const url = isSelected 
+            ? `/details/showitem/${task_id}/${item_id}/delete_tag/`
+            : `/details/showitem/${task_id}/${item_id}/add_tag/`;
+        
+        $.ajax({
+            url: url,
+            type: 'POST',
+            headers: {'X-CSRFToken': getCookie('csrftoken')},
+            contentType: 'application/json',
+            data: JSON.stringify({
+                type: tagType,
+                color: tagColor
+            }),
+            success: function(res) {
+                if (res.status === 'success') {
+                    // 成功后刷新页面
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 500);
+                } else {
+                    alert('操作失败：' + res.message);
+                    button.disabled = false;
+                    button.innerHTML = originalText;
+                }
+            },
+            error: function() {
+                alert('请求失败，请检查网络连接');
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        });
+    }
+    
+    // 删除Tag标签函数
+    function deleteTag(tagType, buttonElement) {
+        // 创建确认对话框
+        const confirmBox = document.createElement('div');
+        confirmBox.style.position = 'fixed';
+        confirmBox.style.top = '50%';
+        confirmBox.style.left = '50%';
+        confirmBox.style.transform = 'translate(-50%, -50%)';
+        confirmBox.style.background = 'white';
+        confirmBox.style.padding = '25px';
+        confirmBox.style.borderRadius = '12px';
+        confirmBox.style.boxShadow = '0 10px 30px rgba(0,0,0,0.3)';
+        confirmBox.style.zIndex = '2000';
+        confirmBox.style.minWidth = '350px';
+        confirmBox.style.textAlign = 'center';
+        confirmBox.style.animation = 'fadeIn 0.3s ease-out';
+
+        confirmBox.innerHTML = `
+            <div style="color:#f39c12;font-size:48px;margin-bottom:15px;">
+                <i class="fas fa-tag"></i>
+            </div>
+            <h4 style="margin-bottom:15px;color:#333;">确认删除Tag标签</h4>
+            <p style="margin-bottom:20px;color:#666;">
+                您确定要删除Tag标签 "<strong>${tagType}</strong>" 吗？<br>
+                <small style="color:#999;">此操作将移除该Tag标记</small>
+            </p>
+            <div style="display:flex;gap:10px;justify-content:center;">
+                <button id="cancelDeleteTag" class="btn btn-secondary">取消</button>
+                <button id="confirmDeleteTag" class="btn btn-danger">确认删除</button>
+            </div>
+        `;
+
+        // 创建遮罩层
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.background = 'rgba(0,0,0,0.5)';
+        overlay.style.zIndex = '1999';
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(confirmBox);
+
+        // 取消删除
+        document.getElementById('cancelDeleteTag').onclick = function() {
+            document.body.removeChild(overlay);
+            document.body.removeChild(confirmBox);
+        };
+
+        // 确认删除
+        document.getElementById('confirmDeleteTag').onclick = function() {
+            // 显示加载状态
+            confirmBox.innerHTML = `
+                <div style="color:#1a73e8;font-size:48px;margin-bottom:15px;">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+                <h4 style="margin-bottom:15px;color:#333;">正在删除Tag...</h4>
+                <p style="color:#666;">请稍候，正在处理您的请求</p>
+            `;
+
+            const task_id = "{{ task.task_id }}";
+            const item_id = "{{ item.id }}";
+            
+            // 禁用按钮并显示加载状态
+            if (buttonElement) {
+                buttonElement.disabled = true;
+                buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 删除中...';
+            }
+
+            $.ajax({
+                url: `/details/showitem/${task_id}/${item_id}/delete_tag/`,
+                type: 'POST',
+                headers: {'X-CSRFToken': getCookie('csrftoken')},
+                contentType: 'application/json',
+                data: JSON.stringify({type: tagType}),
+                success: function(res) {
+                    if (res.status === 'success') {
+                        // 成功删除
+                        confirmBox.innerHTML = `
+                            <div style="color:#4caf50;font-size:48px;margin-bottom:15px;">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <h4 style="margin-bottom:15px;color:#4caf50;">删除成功</h4>
+                            <p style="color:#666;">Tag标签已成功删除，页面即将刷新</p>
+                        `;
+                        
+                        // 1.5秒后刷新页面
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        // 删除失败
+                        confirmBox.innerHTML = `
+                            <div style="color:#f44336;font-size:48px;margin-bottom:15px;">
+                                <i class="fas fa-times-circle"></i>
+                            </div>
+                            <h4 style="margin-bottom:15px;color:#f44336;">删除失败</h4>
+                            <p style="margin-bottom:20px;color:#666;">${res.message}</p>
+                            <button onclick="document.body.removeChild(document.querySelector('[style*=z-index\\:1999]')); document.body.removeChild(this.closest('[style*=z-index\\:2000]'));" class="btn btn-primary">关闭</button>
+                        `;
+                        
+                        // 恢复按钮状态
+                        if (buttonElement) {
+                            buttonElement.disabled = false;
+                            buttonElement.innerHTML = '<i class="fas fa-trash"></i> 删除';
+                        }
+                    }
+                },
+                error: function() {
+                    // 错误处理
+                    confirmBox.innerHTML = `
+                        <div style="color:#f44336;font-size:48px;margin-bottom:15px;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <h4 style="margin-bottom:15px;color:#f44336;">网络错误</h4>
+                        <p style="margin-bottom:20px;color:#666;">删除Tag时发生网络错误，请检查网络连接后重试</p>
+                        <button onclick="document.body.removeChild(document.querySelector('[style*=z-index\\:1999]')); document.body.removeChild(this.closest('[style*=z-index\\:2000]'));" class="btn btn-primary">关闭</button>
+                    `;
+                }
+            });
+        };
+
+        // 支持ESC键取消
+        const handleKeyDown = function(e) {
+            if (e.key === 'Escape') {
+                document.body.removeChild(overlay);
+                document.body.removeChild(confirmBox);
+                document.removeEventListener('keydown', handleKeyDown);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+
+        // 点击遮罩层取消
+        overlay.onclick = function() {
+            document.body.removeChild(overlay);
+            document.body.removeChild(confirmBox);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }
+
     // 获取CSRF
     function getCookie(name) {
         let cookieValue = null;
@@ -1316,6 +1590,7 @@
             <h4 style="margin-bottom:15px;color:#333;">确认删除关系</h4>
             <p style="margin-bottom:20px;color:#666;">
                 您确定要删除关系 "<strong>${relationType}</strong>" 吗？<br>
+                请注意：与该关系相关的关系将被一并删除！<br>
                 <small style="color:#999;">${relationDetail}</small><br>
                 <small style="color:#999;">关系ID: ${relationId}</small>
             </p>
@@ -1375,42 +1650,20 @@
                             <i class="fas fa-check-circle"></i>
                         </div>
                         <h4 style="margin-bottom:15px;color:#333;">删除成功</h4>
-                        <p style="color:#666;">关系已成功删除</p>
+                        <p style="color:#666;">关系已成功删除，页面即将刷新</p>
                     `;
                     
-                    // 从页面中移除关系卡片
+                    // 1.5秒后刷新页面
                     setTimeout(() => {
-                        relationCard.style.transition = 'all 0.3s ease';
-                        relationCard.style.opacity = '0';
-                        relationCard.style.transform = 'translateX(-100%)';
-                        
-                        setTimeout(() => {
-                            relationCard.remove();
-                            
-                            // 检查是否还有关系，如果没有则显示空状态
-                            const relationsList = document.getElementById('relationsList');
-                            if (relationsList.children.length === 0) {
-                                relationsList.innerHTML = `
-                                    <div class="text-muted" style="padding: 20px; text-align: center; background: #f8f9fa; border: 1px dashed #ddd; border-radius: 8px;">
-                                        <i class="fas fa-exclamation-circle"></i> 当前语料暂无已标注关系
-                                    </div>
-                                `;
-                            }
-                        }, 300);
+                        window.location.reload();
                     }, 1000);
-                    
-                    // 1.5秒后关闭对话框
-                    setTimeout(() => {
-                        document.body.removeChild(overlay);
-                        document.body.removeChild(confirmBox);
-                    }, 1500);
                 } else {
                     // 删除失败
                     confirmBox.innerHTML = `
                         <div style="color:#f44336;font-size:48px;margin-bottom:15px;">
                             <i class="fas fa-times-circle"></i>
                         </div>
-                        <h4 style="margin-bottom:15px;color:#333;">删除失败</h4>
+                        <h4 style="margin-bottom:15px;color:#f44336;">删除失败</h4>
                         <p style="margin-bottom:20px;color:#666;">${data.message}</p>
                         <button class="btn btn-primary" onclick="this.closest('.overlay').click()">确定</button>
                     `;
@@ -1422,7 +1675,7 @@
                     <div style="color:#f44336;font-size:48px;margin-bottom:15px;">
                         <i class="fas fa-exclamation-triangle"></i>
                     </div>
-                    <h4 style="margin-bottom:15px;color:#333;">网络错误</h4>
+                    <h4 style="margin-bottom:15px;color:#f44336;">网络错误</h4>
                     <p style="margin-bottom:20px;color:#666;">删除关系时发生网络错误，请检查网络连接后重试</p>
                     <button class="btn btn-primary" onclick="this.parentElement.parentElement.parentElement.click()">确定</button>
                 `;
