@@ -10,6 +10,7 @@ import json
 import zipfile
 import os
 from typing import Dict, Any, List
+import warnings
 
 def task_detail(request, task_id):
     # Fetch the task record from the database using the task_id
@@ -205,8 +206,11 @@ def show_item(request, task_id, item_id):
         # 构建类型到颜色的映射（label.json 里每个 label 需有 name 和 color 字段）
         label_type2color = {l['name']: l.get('color', '#39c5bb') for l in labels}
 
+        # 给每个 label 加上 text 字段，便于模板直接显示
+        for lab in item.get('labels', []):
+            lab['text'] = text[lab['start']:lab['end']]
+
         # 根据标签的起始和终止位置切分文本，并为每个有 label 的 segment 加入 color
-        text = item[config.TEXT]
         segments = []
         last_end = 0
         for label in sorted_labels:
@@ -551,3 +555,148 @@ def delete_label(request, task_id, item_id):
         return JsonResponse({'status': 'success'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'删除标注失败: {str(e)}'})
+
+@ensure_csrf_cookie
+def add_relation_page(request, task_id, item_id):
+    """
+    渲染专门的建立relation页面。
+    """
+    warnings.warn("本函数所指向的页面已废弃", DeprecationWarning)
+    try:
+        task_record = TaskRecord.objects.get(task_id=task_id)
+        task_dirpath = task_record.task_dirpath
+        data_file = Path(task_dirpath) / 'data.json'
+        with data_file.open('r', encoding='utf-8') as f:
+            items = json.load(f)
+        item = next((item for item in items if item[config.ID] == item_id), None)
+        if not item:
+            return JsonResponse({'status': 'error', 'message': '未找到指定条目'})
+        # labels: [{'type':..., 'start':..., 'end':..., 'color':...}]
+        # color可从label.json查找
+        label_json = Path(task_dirpath) / 'label.json'
+        label_color_map = {}
+        if label_json.exists():
+            with label_json.open('r', encoding='utf-8') as f:
+                for l in json.load(f):
+                    label_color_map[l['name']] = l.get('color', '#39c5bb')
+        labels = []
+        for lab in item.get('labels', []):
+            labels.append({
+                'type': lab['type'],
+                'start': lab['start'],
+                'end': lab['end'], 
+                'id': lab['id'], 
+                'color': label_color_map.get(lab['type'], '#39c5bb')
+            })
+        # relations: [{'name':..., 'color':...}]
+        relation_json = Path(task_dirpath) / 'relation.json'
+        relations = []
+        if relation_json.exists():
+            with relation_json.open('r', encoding='utf-8') as f:
+                for r in json.load(f):
+                    relations.append({'name': r['name'], 'color': r.get('color', '#f39c12')})
+        return render(request, 'details/add_relation.html', {
+            'labels': labels,
+            'relations': relations,
+            'task_id': task_id,
+            'item_id': item_id
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'加载关系页面失败: {str(e)}'})
+
+@csrf_exempt
+def add_relation(request, task_id, item_id):
+    """
+    接收前端两个label和relation，写入data.json的relations字段。
+    POST: {label1: {...}, label2: {...}, relation: {...}}
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': '只接受POST请求'})
+    try:
+        data = json.loads(request.body)
+        label1 = data.get('label1')
+        label2 = data.get('label2')
+        relation = data.get('relation')
+        if not (label1 and label2 and relation):
+            return JsonResponse({'status': 'error', 'message': '参数不完整'})
+        task_record = TaskRecord.objects.get(task_id=task_id)
+        task_dirpath = task_record.task_dirpath
+        data_file = Path(task_dirpath) / 'data.json'
+        with data_file.open('r', encoding='utf-8') as f:
+            items = json.load(f)
+        item = next((item for item in items if item[config.ID] == item_id), None)
+        if not item:
+            return JsonResponse({'status': 'error', 'message': '未找到指定条目'})
+        if 'relations' not in item:
+            item['relations'] = []
+        
+        # Get next relation ID
+        relation_id = 0 if not item['relations'] else max(rel.get('id', 0) for rel in item['relations']) + 1
+        
+        rel_obj = {
+            'id': relation_id,
+            'type': relation.get('name'),
+            # 'color': relation.get('color'),
+            'start': {
+                'type': label1.get('type'),
+                'id': label1.get('id'),
+            },
+            'end': {
+                'type': label2.get('type'),
+                'id': label2.get('id'),
+            }
+        }
+        item['relations'].append(rel_obj)
+        with data_file.open('w', encoding='utf-8') as f:
+            json.dump(items, f, ensure_ascii=False, indent=4)
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'添加关系失败: {str(e)}'})
+
+@csrf_exempt
+def delete_relation(request, task_id, item_id):
+    """
+    删除指定item下的某个relation（通过relation_id唯一定位）。
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': '只接受POST请求'})
+    try:
+        data = json.loads(request.body)
+        relation_id = data.get('relation_id')
+        
+        if relation_id is None:
+            return JsonResponse({'status': 'error', 'message': '缺少关系ID'})
+        
+        # 获取任务和条目
+        task_record = TaskRecord.objects.get(task_id=task_id)
+        task_dirpath = task_record.task_dirpath
+        data_file = Path(task_dirpath) / 'data.json'
+        
+        with data_file.open('r', encoding='utf-8') as f:
+            items = json.load(f)
+        
+        # 找到对应item
+        item = next((item for item in items if item[config.ID] == item_id), None)
+        if not item:
+            return JsonResponse({'status': 'error', 'message': '未找到指定条目'})
+        
+        # 删除relation
+        if 'relations' not in item:
+            return JsonResponse({'status': 'error', 'message': '该条目没有关系数据'})
+        
+        before_count = len(item['relations'])
+        item['relations'] = [
+            rel for rel in item['relations']
+            if rel.get('id') != relation_id
+        ]
+        
+        if len(item['relations']) == before_count:
+            return JsonResponse({'status': 'error', 'message': '未找到指定关系'})
+        
+        # 保存
+        with data_file.open('w', encoding='utf-8') as f:
+            json.dump(items, f, ensure_ascii=False, indent=2)
+        
+        return JsonResponse({'status': 'success', 'message': '关系删除成功'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'删除关系失败: {str(e)}'})

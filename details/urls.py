@@ -23,4 +23,9 @@ urlpatterns = [
     # tag二值切换接口
     path('showitem/<int:task_id>/<int:item_id>/add_tag/', views.add_tag, name='add_tag'),
     path('showitem/<int:task_id>/<int:item_id>/delete_tag/', views.delete_tag, name='delete_tag'),
+    # 07-04: 专门的关系标注页面和接口
+    path('showitem/<int:task_id>/<int:item_id>/add_relation_page/', views.add_relation_page, name='add_relation_page'),
+    path('showitem/<int:task_id>/<int:item_id>/add_relation/', views.add_relation, name='add_relation'),
+    # 07-09: 关系删除接口
+    path('showitem/<int:task_id>/<int:item_id>/delete_relation/', views.delete_relation, name='delete_relation'),
 ]
