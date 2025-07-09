@@ -9,8 +9,9 @@ from pathlib import Path
 import json
 import zipfile
 import os
-from typing import Dict, Any, List
+import traceback
 import warnings
+from typing import Dict, Any, List
 
 def task_detail(request, task_id):
     # Fetch the task record from the database using the task_id
@@ -209,6 +210,9 @@ def show_item(request, task_id, item_id):
         # 给每个 label 加上 text 字段，便于模板直接显示
         for lab in item.get('labels', []):
             lab['text'] = text[lab['start']:lab['end']]
+
+        # 数据迁移：确保关系数据兼容新格式
+        migrate_relation_data(item)
 
         # 根据标签的起始和终止位置切分文本，并为每个有 label 的 segment 加入 color
         segments = []
@@ -607,48 +611,67 @@ def add_relation_page(request, task_id, item_id):
 @csrf_exempt
 def add_relation(request, task_id, item_id):
     """
-    接收前端两个label和relation，写入data.json的relations字段。
-    POST: {label1: {...}, label2: {...}, relation: {...}}
+    接收前端两个对象(label或relation)和relation类型，写入data.json的relations字段。
+    POST: {object1: {...}, object2: {...}, relation: {...}}
     """
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': '只接受POST请求'})
     try:
         data = json.loads(request.body)
-        label1 = data.get('label1')
-        label2 = data.get('label2')
+        object1 = data.get('object1') or data.get('label1')  # 兼容旧版本参数名
+        object2 = data.get('object2') or data.get('label2')  # 兼容旧版本参数名
         relation = data.get('relation')
-        if not (label1 and label2 and relation):
+        
+        if not (object1 and object2 and relation):
             return JsonResponse({'status': 'error', 'message': '参数不完整'})
+        
         task_record = TaskRecord.objects.get(task_id=task_id)
         task_dirpath = task_record.task_dirpath
         data_file = Path(task_dirpath) / 'data.json'
+        
         with data_file.open('r', encoding='utf-8') as f:
             items = json.load(f)
+        
         item = next((item for item in items if item[config.ID] == item_id), None)
         if not item:
             return JsonResponse({'status': 'error', 'message': '未找到指定条目'})
+        
         if 'relations' not in item:
             item['relations'] = []
         
         # Get next relation ID
         relation_id = 0 if not item['relations'] else max(rel.get('id', 0) for rel in item['relations']) + 1
         
+        # 构建新的关系对象，支持label和relation对象
         rel_obj = {
             'id': relation_id,
             'type': relation.get('name'),
-            # 'color': relation.get('color'),
             'start': {
-                'type': label1.get('type'),
-                'id': label1.get('id'),
+                'object_type': object1.get('object_type', 'label'),
+                'type': object1.get('type'),
+                'id': object1.get('id'),
             },
             'end': {
-                'type': label2.get('type'),
-                'id': label2.get('id'),
+                'object_type': object2.get('object_type', 'label'),
+                'type': object2.get('type'),
+                'id': object2.get('id'),
             }
         }
+        
+        # 如果是label对象，还需要保存位置信息（向后兼容）
+        if object1.get('object_type', 'label') == 'label':
+            rel_obj['start']['start'] = object1.get('start')
+            rel_obj['start']['end'] = object1.get('end')
+        
+        if object2.get('object_type', 'label') == 'label':
+            rel_obj['end']['start'] = object2.get('start')
+            rel_obj['end']['end'] = object2.get('end')
+        
         item['relations'].append(rel_obj)
+        
         with data_file.open('w', encoding='utf-8') as f:
             json.dump(items, f, ensure_ascii=False, indent=4)
+        
         return JsonResponse({'status': 'success'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'添加关系失败: {str(e)}'})
@@ -700,3 +723,114 @@ def delete_relation(request, task_id, item_id):
         return JsonResponse({'status': 'success', 'message': '关系删除成功'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'删除关系失败: {str(e)}'})
+
+def migrate_relation_data(item):
+    """
+    将旧格式的关系数据迁移到新格式
+    """
+    if 'relations' not in item:
+        return
+    
+    for rel in item['relations']:
+        # 如果start和end没有object_type字段，说明是旧格式，需要迁移
+        if 'start' in rel and 'object_type' not in rel['start']:
+            rel['start']['object_type'] = 'label'
+        if 'end' in rel and 'object_type' not in rel['end']:
+            rel['end']['object_type'] = 'label'
+
+@ensure_csrf_cookie
+def show_item(request, task_id, item_id):
+    try:
+        # 获取任务记录
+        task_record = TaskRecord.objects.get(task_id=task_id)
+        task_dirpath = task_record.task_dirpath
+        
+        # 读取数据文件
+        file_path = Path(task_dirpath) / 'data.json'
+        # print(file_path)
+        with file_path.open("r", encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # print(data[0])
+        # 查找指定ID的条目
+        item: Dict[str, Any] = next((item for item in data if item[config.ID] == item_id), None)
+        
+        if not item:
+            return JsonResponse({'status': 'error', 'message': '未找到指定条目'})
+        
+        # 数据迁移逻辑
+        migrate_relation_data(item)
+
+        # TODO: 设计显示逻辑
+        # 处理label的显示
+        sorted_labels = sorted(item[config.LABELS], key=lambda x: (x[config.START], x[config.END]))
+        if not utils.check_labels_no_overlap(sorted_labels):
+            return JsonResponse({'status': 'error', 'message': '标签存在重叠，无法显示'})
+
+        # 根据标签的起始和终止位置切分文本，用于后续显示
+        text = item[config.TEXT]
+        segments = []
+        last_end = 0
+        for label in sorted_labels:
+            start = label[config.START]
+            end = label[config.END]
+            segments.append({'text': text[last_end:start], 'label': None, 'start': last_end, 'end': start})
+            segments.append({'text': text[start:end], 'label': label, 'start': start, 'end': end})
+            last_end = end
+        if last_end < len(text):
+            segments.append({'text': text[last_end:], 'label': None, 'start': last_end, 'end': len(text)})
+
+        # 读取tag, label, relation信息
+        def read_json_file(filename):
+            file_path = Path(task_dirpath) / filename
+            if not file_path.exists():
+                return []
+            with file_path.open('r', encoding='utf-8') as f:
+                try:
+                    data = json.load(f)
+                    return data
+                except Exception:
+                    return []
+
+        tags = read_json_file('tag.json')
+        labels = read_json_file('label.json')
+        relations = read_json_file('relation.json')
+
+        # 构建类型到颜色的映射（label.json 里每个 label 需有 name 和 color 字段）
+        label_type2color = {l['name']: l.get('color', '#39c5bb') for l in labels}
+
+        # 给每个 label 加上 text 字段，便于模板直接显示
+        for lab in item.get('labels', []):
+            lab['text'] = text[lab['start']:lab['end']]
+
+        # 数据迁移：确保关系数据兼容新格式
+        migrate_relation_data(item)
+
+        # 根据标签的起始和终止位置切分文本，并为每个有 label 的 segment 加入 color
+        segments = []
+        last_end = 0
+        for label in sorted_labels:
+            start = label[config.START]
+            end = label[config.END]
+            color = label_type2color.get(label['type'], '#39c5bb')
+            if last_end < start:
+                segments.append({'text': text[last_end:start], 'label': None, 'start': last_end, 'end': start})
+            segments.append({'text': text[start:end], 'label': label, 'start': start, 'end': end, 'color': color})
+            last_end = end
+        if last_end < len(text):
+            segments.append({'text': text[last_end:], 'label': None, 'start': last_end, 'end': len(text)})
+        # 传递原始文本和segments（含原始索引、颜色）到前端
+        # 获取当前item的tags类型列表（只存type字符串）
+        item_tags = [t['type'] for t in item.get('tags', [])] if 'tags' in item else []
+        return render(request, 'details/showitem.html', {
+            'task': task_record,
+            'item': item,
+            'segments': segments,
+            'tags': tags,
+            'labels': labels,
+            'relations': relations,
+            'original_text': text,
+            'item_tags': item_tags
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f"显示条目失败: {str(e)}"})

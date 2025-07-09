@@ -416,18 +416,31 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         
-        #relationPreview {
-            animation: fadeIn 0.5s ease-in-out;
+        /* 对象选择器样式 */
+        .object-selector {
+            transition: all 0.3s ease !important;
         }
         
-        #submitRelation:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .object-selector:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         
-        #submitRelation:not(:disabled):hover {
+        .object-selector.selected {
+            background: #e3f2fd !important;
+            border-color: #2196f3 !important;
+            color: #1976d2 !important;
             transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+        
+        .relation-selector {
+            background: #fff3cd !important;
+            border-color: #ffeaa7 !important;
+        }
+        
+        .relation-selector:hover {
+            background: #ffecb3 !important;
+            border-color: #ffcc02 !important;
         }
     </style>
 </head>
@@ -568,9 +581,17 @@
                         <div class="relation-object-section">
                             <span class="relation-object-label">关系对象:</span>
                             <span class="relation-detail">
-                                <span class="relation-source">{{ rel.start.type }}[ID:{{ rel.start.id }}]</span>
+                                {% if rel.start.object_type == 'relation' %}
+                                    <span class="relation-source" style="background-color: #fff3cd; color: #856404;">关系:{{ rel.start.type }}[ID:{{ rel.start.id }}]</span>
+                                {% else %}
+                                    <span class="relation-source">标签:{{ rel.start.type }}[ID:{{ rel.start.id }}]</span>
+                                {% endif %}
                                 <i class="fas fa-arrow-right" style="margin: 0 8px; color: #1a73e8;"></i>
-                                <span class="relation-target">{{ rel.end.type }}[ID:{{ rel.end.id }}]</span>
+                                {% if rel.end.object_type == 'relation' %}
+                                    <span class="relation-target" style="background-color: #fff3cd; color: #856404;">关系:{{ rel.end.type }}[ID:{{ rel.end.id }}]</span>
+                                {% else %}
+                                    <span class="relation-target">标签:{{ rel.end.type }}[ID:{{ rel.end.id }}]</span>
+                                {% endif %}
                             </span>
                         </div>
                     </div>
@@ -618,20 +639,46 @@
                 <i class="fas fa-info-circle"></i> 请按顺序：1) 选择两个标注对象 2) 选择关系类型 3) 点击建立关系
             </div>
 
-            <h6 style="margin-bottom: 10px; color: #1a73e8;">步骤1：选择标注对象 (已选择: <span id="selectedCount">0</span>/2)</h6>
-            <div class="mb-3" id="labelSelectionArea" style="max-height: 200px; overflow-y: auto; padding: 15px; background: white; border: 1px solid #ddd; border-radius: 6px;">
-                {% for lab in item.labels %}
-                    <span class="label-selector" 
-                          data-type="{{ lab.type }}" 
-                          data-start="{{ lab.start }}" 
-                          data-end="{{ lab.end }}" 
-                          data-id="{{ lab.id }}"
-                          style="display: inline-block; margin: 5px; padding: 8px 12px; background: #f0f0f0; border: 2px solid #ddd; border-radius: 20px; cursor: pointer; transition: all 0.3s ease;">
-                        <strong>{{ lab.type }}</strong> [{{ lab.start }}-{{ lab.end }}]: "{{ lab.text|truncatechars:20 }}"
-                    </span>
-                {% empty %}
-                    <div class="text-muted">当前语料暂无可用标注对象</div>
-                {% endfor %}
+            <h6 style="margin-bottom: 10px; color: #1a73e8;">步骤1：选择对象 (已选择: <span id="selectedCount">0</span>/2)</h6>
+            <div class="mb-3">
+                <!-- 标签对象选择区域 -->
+                <div style="margin-bottom: 15px;">
+                    <h6 style="font-size: 0.9rem; margin-bottom: 8px; color: #5f6368;">选择标签对象：</h6>
+                    <div id="labelSelectionArea" style="max-height: 150px; overflow-y: auto; padding: 15px; background: white; border: 1px solid #ddd; border-radius: 6px;">
+                        {% for lab in item.labels %}
+                            <span class="object-selector label-selector" 
+                                  data-object-type="label"
+                                  data-type="{{ lab.type }}" 
+                                  data-start="{{ lab.start }}" 
+                                  data-end="{{ lab.end }}" 
+                                  data-id="{{ lab.id }}"
+                                  style="display: inline-block; margin: 5px; padding: 8px 12px; background: #f0f0f0; border: 2px solid #ddd; border-radius: 20px; cursor: pointer; transition: all 0.3s ease;">
+                                <i class="fas fa-tag"></i> <strong>{{ lab.type }}</strong> [{{ lab.start }}-{{ lab.end }}]: "{{ lab.text|truncatechars:20 }}"
+                            </span>
+                        {% empty %}
+                            <div class="text-muted">当前语料暂无可用标签对象</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- 关系对象选择区域 -->
+                <div>
+                    <h6 style="font-size: 0.9rem; margin-bottom: 8px; color: #5f6368;">选择关系对象：</h6>
+                    <div id="relationSelectionArea" style="max-height: 150px; overflow-y: auto; padding: 15px; background: white; border: 1px solid #ddd; border-radius: 6px;">
+                        {% for rel in item.relations %}
+                            <span class="object-selector relation-selector" 
+                                  data-object-type="relation"
+                                  data-type="{{ rel.type }}" 
+                                  data-id="{{ rel.id }}"
+                                  style="display: inline-block; margin: 5px; padding: 8px 12px; background: #fff3cd; border: 2px solid #ffeaa7; border-radius: 20px; cursor: pointer; transition: all 0.3s ease;">
+                                <i class="fas fa-link"></i> <strong>{{ rel.type }}</strong> [ID:{{ rel.id }}]: 
+                                {% if rel.start.object_type == 'relation' %}关系:{{ rel.start.type }}{% else %}标签:{{ rel.start.type }}{% endif %}→{% if rel.end.object_type == 'relation' %}关系:{{ rel.end.type }}{% else %}标签:{{ rel.end.type }}{% endif %}
+                            </span>
+                        {% empty %}
+                            <div class="text-muted">当前语料暂无可用关系对象</div>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
 
             <h6 style="margin-bottom: 10px; color: #1a73e8;">步骤2：选择关系类型</h6>
@@ -699,9 +746,10 @@
         selectedRelationType = null;
         
         // 重置标注对象选择状态
-        document.querySelectorAll('.label-selector').forEach(el => {
-            el.style.background = '#f0f0f0';
-            el.style.borderColor = '#ddd';
+        document.querySelectorAll('.object-selector').forEach(el => {
+            const objectType = el.getAttribute('data-object-type');
+            el.style.background = objectType === 'label' ? '#f0f0f0' : '#fff3cd';
+            el.style.borderColor = objectType === 'label' ? '#ddd' : '#ffeaa7';
             el.style.color = '#333';
         });
         
@@ -1080,11 +1128,18 @@
         
         if (selectedLabelsForRelation.length === 2 && selectedRelationType) {
             if (relationPreview) {
+                const obj1Text = selectedLabelsForRelation[0].object_type === 'label' 
+                    ? `标签:${selectedLabelsForRelation[0].type}` 
+                    : `关系:${selectedLabelsForRelation[0].type}`;
+                const obj2Text = selectedLabelsForRelation[1].object_type === 'label' 
+                    ? `标签:${selectedLabelsForRelation[1].type}` 
+                    : `关系:${selectedLabelsForRelation[1].type}`;
+                    
                 relationPreview.innerHTML = `
                     <i class="fas fa-arrow-right"></i> 
-                    将建立：<strong>${selectedLabelsForRelation[0].type}</strong> 
+                    将建立：<strong>${obj1Text}</strong> 
                     → <strong style="color: ${selectedRelationType.color};">${selectedRelationType.name}</strong> 
-                    → <strong>${selectedLabelsForRelation[1].type}</strong>
+                    → <strong>${obj2Text}</strong>
                 `;
             }
             if (submitBtn) submitBtn.disabled = false;
@@ -1116,8 +1171,8 @@
             headers: {'X-CSRFToken': getCookie('csrftoken')},
             contentType: 'application/json',
             data: JSON.stringify({
-                label1: selectedLabelsForRelation[0],
-                label2: selectedLabelsForRelation[1],
+                object1: selectedLabelsForRelation[0],
+                object2: selectedLabelsForRelation[1],
                 relation: selectedRelationType
             }),
             success: function(res) {
@@ -1148,33 +1203,46 @@
     document.addEventListener('click', function(e) {
         if (!relationMode) return;
         
-        if (e.target.classList.contains('label-selector')) {
-            const labelInfo = {
-                type: e.target.getAttribute('data-type'),
-                start: e.target.getAttribute('data-start'),
-                end: e.target.getAttribute('data-end'),
-                id: e.target.getAttribute('data-id'),
-                text: e.target.textContent.trim()
-            };
+        if (e.target.classList.contains('object-selector')) {
+            const objectType = e.target.getAttribute('data-object-type');
+            let objectInfo;
+            
+            if (objectType === 'label') {
+                objectInfo = {
+                    object_type: 'label',
+                    type: e.target.getAttribute('data-type'),
+                    start: e.target.getAttribute('data-start'),
+                    end: e.target.getAttribute('data-end'),
+                    id: e.target.getAttribute('data-id'),
+                    text: e.target.textContent.trim()
+                };
+            } else if (objectType === 'relation') {
+                objectInfo = {
+                    object_type: 'relation',
+                    type: e.target.getAttribute('data-type'),
+                    id: e.target.getAttribute('data-id'),
+                    text: e.target.textContent.trim()
+                };
+            }
             
             // 检查是否已选择
             const existingIndex = selectedLabelsForRelation.findIndex(
-                l => l.id === labelInfo.id && l.start === labelInfo.start && l.end === labelInfo.end
+                obj => obj.id === objectInfo.id && obj.object_type === objectInfo.object_type
             );
             
             if (existingIndex !== -1) {
                 // 取消选择
                 selectedLabelsForRelation.splice(existingIndex, 1);
-                e.target.style.background = '#f0f0f0';
-                e.target.style.borderColor = '#ddd';
+                e.target.style.background = objectType === 'label' ? '#f0f0f0' : '#fff3cd';
+                e.target.style.borderColor = objectType === 'label' ? '#ddd' : '#ffeaa7';
                 e.target.style.color = '#333';
             } else {
                 // 添加选择
                 if (selectedLabelsForRelation.length >= 2) {
-                    alert('最多只能选择两个标注对象');
+                    alert('最多只能选择两个对象');
                     return;
                 }
-                selectedLabelsForRelation.push(labelInfo);
+                selectedLabelsForRelation.push(objectInfo);
                 e.target.style.background = '#e3f2fd';
                 e.target.style.borderColor = '#2196f3';
                 e.target.style.color = '#1976d2';
