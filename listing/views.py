@@ -15,6 +15,12 @@ def index(request):
 def task_create(request):
     return render(request, 'listing/task_create.html')
 
+def introduction(request):
+    """
+    显示系统使用指南页面
+    """
+    return render(request, 'listing/introduction.html')
+
 @ensure_csrf_cookie
 def create_complete(request):
     if request.method == 'POST':

@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>使用指南 - 语言学数据标注平台</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/4.6.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            padding-top: 76px; /* 为固定导航栏留出空间 */
+        }
+
+        .navbar-custom {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .navbar-custom .navbar-brand,
+        .navbar-custom .nav-link {
+            color: white !important;
+            transition: all 0.3s ease;
+        }
+
+        .navbar-custom .nav-link:hover {
+            color: #e3f2fd !important;
+            transform: translateY(-1px);
+        }
+
+        .navbar-custom .nav-link.active {
+            background-color: rgba(255,255,255,0.2);
+            border-radius: 5px;
+        }
+
+        .section {
+            min-height: 100vh;
+            padding: 2rem 0;
+            scroll-margin-top: 76px; /* 为固定导航栏调整滚动位置 */
+        }
+
+        .section:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .section h2 {
+            color: #007bff;
+            margin-bottom: 2rem;
+            font-weight: 600;
+        }
+
+        .card {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+            border: none;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-card {
+            height: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.15);
+        }
+
+        .step-card {
+            border-left: 4px solid #007bff;
+            transition: all 0.3s ease;
+        }
+
+        .step-card:hover {
+            border-left-color: #28a745;
+            transform: translateX(5px);
+        }
+
+        .step-number {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .code-block {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+
+        .highlight {
+            background-color: #fff3cd;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            cursor: pointer;
+            display: none;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .back-to-top:hover {
+            background: #0056b3;
+            transform: scale(1.1);
+        }
+
+        .annotation-type {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-left: 5px solid #007bff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .faq-item {
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .faq-header {
+            background: #f8f9fa;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .faq-header:hover {
+            background: #e9ecef;
+        }
+
+        .faq-content {
+            padding: 1.5rem;
+            display: none;
+        }
+
+        .faq-content.active {
+            display: block;
+        }
+
+        .intro-hero {
+            background: linear-gradient(135deg, #007bff, #6610f2);
+            color: white;
+            padding: 3rem 0;
+            margin-bottom: 2rem;
+        }
+
+        .btn-custom {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            border: none;
+            color: white;
+            padding: 0.75rem 2rem;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,123,255,0.4);
+            color: white;
+        }
+
+        .icon-large {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+            
+            .section {
+                padding: 1rem 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 固定导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-custom fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="#intro">
+                <i class="fas fa-book-open"></i> 使用指南
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#overview">系统概览</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#quickstart">快速开始</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#annotation">标注指南</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#data">数据格式</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#faq">常见问题</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">
+                            <i class="fas fa-home"></i> 返回主页
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 介绍区域 -->
+    <section id="intro" class="intro-hero">
+        <div class="container text-center">
+            <h1><i class="fas fa-graduation-cap"></i> 语言学数据标注平台</h1>
+            <p class="lead">专业的语言学数据标注管理系统，支持多层次标注和可视化操作</p>
+            <a href="#overview" class="btn btn-custom btn-lg mt-3">
+                <i class="fas fa-arrow-down"></i> 开始探索
+            </a>
+        </div>
+    </section>
+
+    <!-- 系统概览 -->
+    <section id="overview" class="section">
+        <div class="container">
+            <h2><i class="fas fa-info-circle"></i> 系统概览</h2>
+            
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="card feature-card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-tags icon-large text-primary"></i>
+                            <h4>Tag标注</h4>
+                            <p class="text-muted">对整个句子或文档进行分类标注，如情感分析、文本类型分类等。支持多标签同时存在。</p>
+                            <div class="mt-3">
+                                <span class="badge badge-primary">文档级标注</span>
+                                <span class="badge badge-info">多标签支持</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4 mb-4">
+                    <div class="card feature-card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-highlight icon-large text-success"></i>
+                            <h4>Label标注</h4>
+                            <p class="text-muted">对文本片段进行实体或语言现象标注，如命名实体识别、词性标注等。</p>
+                            <div class="mt-3">
+                                <span class="badge badge-success">片段级标注</span>
+                                <span class="badge badge-info">冲突检测</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4 mb-4">
+                    <div class="card feature-card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-project-diagram icon-large text-warning"></i>
+                            <h4>Relation标注</h4>
+                            <p class="text-muted">建立标注对象之间的语义关系，构建知识图谱和语义网络。</p>
+                            <div class="mt-3">
+                                <span class="badge badge-warning">关系级标注</span>
+                                <span class="badge badge-info">图谱构建</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5><i class="fas fa-star text-warning"></i> 核心特性</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success"></i> 多任务并行管理</li>
+                                <li><i class="fas fa-check text-success"></i> 直观的可视化界面</li>
+                                <li><i class="fas fa-check text-success"></i> 智能冲突检测</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success"></i> 灵活的数据导入导出</li>
+                                <li><i class="fas fa-check text-success"></i> 响应式设计支持</li>
+                                <li><i class="fas fa-check text-success"></i> 标注历史追踪</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 快速开始 -->
+    <section id="quickstart" class="section">
+        <div class="container">
+            <h2><i class="fas fa-rocket"></i> 快速开始</h2>
+            
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card step-card">
+                        <div class="card-body">
+                            <div class="step-number">1</div>
+                            <h5>创建标注任务</h5>
+                            <p>在首页点击"新增任务"按钮，填写任务名称和描述。</p>
+                            <div class="alert alert-warning">
+                                <small><i class="fas fa-exclamation-triangle"></i> 任务名称将用作存储目录，建议使用英文或数字</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-4">
+                    <div class="card step-card">
+                        <div class="card-body">
+                            <div class="step-number">2</div>
+                            <h5>上传语料数据</h5>
+                            <p>进入任务详情，点击"上传数据"选择语料文件。</p>
+                            <div class="code-block">
+支持格式: JSON, TXT<br>
+TXT: 每行一个句子<br>
+JSON: 结构化数据
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-4">
+                    <div class="card step-card">
+                        <div class="card-body">
+                            <div class="step-number">3</div>
+                            <h5>配置标注类型</h5>
+                            <p>点击"编辑标签"添加标注类型，设置名称和颜色。</p>
+                            <div class="mt-2">
+                                <span class="badge badge-primary">Tag类型</span>
+                                <span class="badge badge-success">Label类型</span>
+                                <span class="badge badge-warning">Relation类型</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-4">
+                    <div class="card step-card">
+                        <div class="card-body">
+                            <div class="step-number">4</div>
+                            <h5>开始标注</h5>
+                            <p>在语料列表点击"详情"进入标注界面开始工作。</p>
+                            <div class="mt-2">
+                                <span class="highlight">选择文本</span> → 
+                                <span class="highlight">选择类型</span> → 
+                                <span class="highlight">确认标注</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="step-number mx-auto">5</div>
+                        <h5>导出结果</h5>
+                        <p>完成标注后点击"下载数据"导出ZIP文件，包含所有标注数据和配置。</p>
+                        <a href="#data" class="btn btn-custom">查看数据格式</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 标注指南 -->
+    <section id="annotation" class="section">
+        <div class="container">
+            <h2><i class="fas fa-edit"></i> 详细标注指南</h2>
+            
+            <div class="annotation-type">
+                <h5><i class="fas fa-tags text-primary"></i> Tag标注操作</h5>
+                <p>Tag标注用于对整个文档进行分类：</p>
+                <div class="row">
+                    <div class="col-md-8">
+                        <ol>
+                            <li>在标注页面找到"可用标签类型"区域</li>
+                            <li>直接点击标签类型进行切换</li>
+                            <li>标签状态会实时保存</li>
+                            <li>支持多个Tag同时存在</li>
+                        </ol>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="alert alert-primary">
+                            <small><i class="fas fa-lightbulb"></i> 适用于情感分析、文档分类等场景</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="annotation-type">
+                <h5><i class="fas fa-highlight text-success"></i> Label标注操作</h5>
+                <p>Label标注用于标注文本中的特定片段：</p>
+                <div class="row">
+                    <div class="col-md-8">
+                        <ol>
+                            <li><span class="highlight">选中文本</span>：鼠标拖拽选择文本片段</li>
+                            <li><span class="highlight">选择类型</span>：在弹出选项中点击标注类型</li>
+                            <li><span class="highlight">确认标注</span>：标注立即生效并显示颜色</li>
+                            <li><span class="highlight">删除标注</span>：点击标注旁的删除按钮</li>
+                        </ol>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="alert alert-success">
+                            <small><i class="fas fa-shield-alt"></i> 系统自动检测重叠标注并阻止冲突</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="annotation-type">
+                <h5><i class="fas fa-project-diagram text-warning"></i> Relation标注操作</h5>
+                <p>Relation标注用于建立标注对象之间的关系：</p>
+                <div class="row">
+                    <div class="col-md-8">
+                        <ol>
+                            <li><span class="highlight">进入关系模式</span>：点击"建立关系"按钮</li>
+                            <li><span class="highlight">选择对象</span>：依次选择两个标注对象</li>
+                            <li><span class="highlight">选择关系类型</span>：选择合适的关系类型</li>
+                            <li><span class="highlight">确认关系</span>：点击"确认建立关系"</li>
+                        </ol>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="alert alert-warning">
+                            <small><i class="fas fa-info-circle"></i> 建议先完成Label标注再建立关系</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h6><i class="fas fa-lightbulb text-warning"></i> 标注技巧与最佳实践</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul>
+                                <li>使用清晰明确的标注类型名称</li>
+                                <li>保持标注一致性和准确性</li>
+                                <li>定期保存和备份标注数据</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul>
+                                <li>遇到问题及时删除重新标注</li>
+                                <li>合理规划标注流程和顺序</li>
+                                <li>充分利用系统的检测功能</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 数据格式 -->
+    <section id="data" class="section">
+        <div class="container">
+            <h2><i class="fas fa-database"></i> 数据格式说明</h2>
+            
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-upload"></i> 输入数据格式</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6><i class="fas fa-file-alt"></i> TXT格式</h6>
+                            <div class="code-block">
+这是第一个句子。
+这是第二个句子。
+每行一个句子或文档。
+                            </div>
+                            
+                            <h6><i class="fas fa-file-code"></i> JSON格式</h6>
+                            <div class="code-block">
+[
+  {
+    "id": "doc_001",
+    "text": "示例文本内容",
+    "tags": [],
+    "labels": [],
+    "relations": []
+  }
+]
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-download"></i> 导出数据格式</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>系统导出ZIP文件包含以下JSON文件：</p>
+                            <div class="mb-3">
+                                <span class="badge badge-primary">data.json</span> 标注数据
+                            </div>
+                            <div class="mb-3">
+                                <span class="badge badge-success">tag.json</span> Tag配置
+                            </div>
+                            <div class="mb-3">
+                                <span class="badge badge-info">label.json</span> Label配置
+                            </div>
+                            <div class="mb-3">
+                                <span class="badge badge-warning">relation.json</span> Relation配置
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-code"></i> 完整数据结构示例</h5>
+                </div>
+                <div class="card-body">
+                    <div class="code-block">
+{
+  "id": "doc_001",
+  "text": "张三在北京大学学习计算机科学。",
+  "tags": ["教育", "个人信息"],
+  "labels": [
+    {
+      "start": 0,
+      "end": 2,
+      "type": "人名",
+      "text": "张三"
+    },
+    {
+      "start": 3,
+      "end": 7,
+      "type": "机构",
+      "text": "北京大学"
+    }
+  ],
+  "relations": [
+    {
+      "relation_id": "rel_001",
+      "type": "就读于",
+      "start": {"object_type": "label", "start": 0, "end": 2},
+      "end": {"object_type": "label", "start": 3, "end": 7}
+    }
+  ]
+}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 常见问题 -->
+    <section id="faq" class="section">
+        <div class="container">
+            <h2><i class="fas fa-question-circle"></i> 常见问题</h2>
+            
+            <div class="faq-item">
+                <div class="faq-header" onclick="toggleFaq(1)">
+                    <h6><i class="fas fa-question"></i> 如何删除错误的标注？</h6>
+                </div>
+                <div class="faq-content" id="faq1">
+                    在标注详情页面，每个标注右侧都有删除按钮，点击即可删除。删除Label标注时，相关的关系也会被自动删除。
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-header" onclick="toggleFaq(2)">
+                    <h6><i class="fas fa-question"></i> 支持哪些文件格式？</h6>
+                </div>
+                <div class="faq-content" id="faq2">
+                    目前支持JSON和TXT格式的语料文件。TXT文件每行一个句子，JSON文件需要符合系统定义的数据结构。
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-header" onclick="toggleFaq(3)">
+                    <h6><i class="fas fa-question"></i> 如何备份标注数据？</h6>
+                </div>
+                <div class="faq-content" id="faq3">
+                    使用"下载数据"功能可以导出完整的标注数据，建议定期备份。导出的ZIP文件包含所有标注信息和配置。
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-header" onclick="toggleFaq(4)">
+                    <h6><i class="fas fa-question"></i> 标注时出现重叠怎么办？</h6>
+                </div>
+                <div class="faq-content" id="faq4">
+                    系统会自动检测标注重叠并阻止创建重叠的标注。如需修改，请先删除现有标注，再重新标注。
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-header" onclick="toggleFaq(5)">
+                    <h6><i class="fas fa-question"></i> 可以修改标注类型的颜色吗？</h6>
+                </div>
+                <div class="faq-content" id="faq5">
+                    可以在"编辑标签"页面修改标注类型的名称和颜色。修改后的颜色会应用到所有使用该类型的标注上。
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-body text-center">
+                    <h6><i class="fas fa-life-ring"></i> 需要更多帮助？</h6>
+                    <p>如果您遇到其他问题，请联系系统管理员或查阅项目文档。</p>
+                    <a href="/" class="btn btn-custom">返回主页</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 返回顶部按钮 -->
+    <button class="back-to-top" onclick="scrollToTop()">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 返回顶部
+        function scrollToTop() {
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        // 显示/隐藏返回顶部按钮
+        $(window).scroll(function() {
+            if ($(this).scrollTop() > 100) {
+                $('.back-to-top').fadeIn();
+            } else {
+                $('.back-to-top').fadeOut();
+            }
+        });
+
+        // 平滑滚动到指定区域
+        $('a[href^="#"]').on('click', function(event) {
+            var target = $(this.getAttribute('href'));
+            if( target.length ) {
+                event.preventDefault();
+                $('html, body').stop().animate({
+                    scrollTop: target.offset().top - 80
+                }, 1000);
+            }
+        });
+
+        // 导航栏活动状态更新
+        $(window).scroll(function() {
+            var scrollDistance = $(window).scrollTop();
+            
+            $('.section').each(function(i) {
+                if ($(this).position().top - 100 <= scrollDistance) {
+                    $('.navbar-nav a.active').removeClass('active');
+                    $('.navbar-nav a').eq(i).addClass('active');
+                }
+            });
+        }).scroll();
+
+        // FAQ切换
+        function toggleFaq(num) {
+            const content = document.getElementById('faq' + num);
+            const isActive = content.classList.contains('active');
+            
+            // 关闭所有FAQ
+            document.querySelectorAll('.faq-content').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // 如果当前不是活动状态，则打开
+            if (!isActive) {
+                content.classList.add('active');
+            }
+        }
+
+        // 页面加载时默认展开第一个FAQ
+        $(document).ready(function() {
+            toggleFaq(1);
+        });
+    </script>
+</body>
+</html>
