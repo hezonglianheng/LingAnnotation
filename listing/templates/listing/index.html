@@ -5,6 +5,7 @@
     <title>语言学数据标注平台</title>
     <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/4.6.0/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
         .spinner-border {
             vertical-align: middle;
@@ -34,6 +35,9 @@
     <h5 class="mb-0">任务列表</h5>
     <div class="d-flex gap-3 align-items-center"> <!-- 修改了这里 -->
         <div class="d-flex gap-1"> <!-- 新增按钮容器 -->
+            <button class="btn btn-info btn-sm" onclick="viewIntroduction()">
+                <i class="fas fa-book-open"></i> 使用指南
+            </button>
             <button class="btn btn-success btn-sm" onclick="addTask()">+ 新增任务</button>
         </div>
     </div>
@@ -87,6 +91,12 @@
     function addTask() {
         // 转向到添加任务页面
         window.location.href = 'listing/task_create/';
+    }
+
+    // 查看使用指南
+    function viewIntroduction() {
+        // 转向到使用指南页面
+        window.location.href = 'listing/introduction/';
     }
     // 删除任务
     function deleteTask(btn) {

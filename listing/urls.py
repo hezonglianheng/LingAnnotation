@@ -6,6 +6,7 @@ app_name = 'listing'
 urlpatterns = [
     path('', views.index, name='index'),
     path('task_create/', views.task_create, name='task_create'),
+    path('introduction/', views.introduction, name='introduction'),
     path('create_complete/', views.create_complete, name='create_complete'),
     # You can add other URL patterns for your listing app here
     path('task_delete/', views.task_delete, name='task_delete'),
