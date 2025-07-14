@@ -64,14 +64,14 @@ python manage.py runserver
 1. 在任务详情页面点击"编辑标签"
 2. 可以添加三种类型的标注：
    - **Tag标签**：用于对整个文档进行分类
-   - **Label标签**：用于标注文本片段
+   - **Label标注**：用于标注文本中的片段
    - **Relation关系**：用于建立标签间的关系
 3. 为每种标注类型设置名称和颜色
 
 ### 4. 进行标注
 1. 点击语料列表中的"详情"按钮进入标注界面
-2. **Tag标注**：点击可用标签类型直接切换
-3. **Label标注**：
+2. **文本标签**：点击可用标签类型直接切换
+3. **片段标注**：
    - 选中要标注的文本片段
    - 点击相应的标注类型进行标注
 4. **关系标注**：
@@ -85,9 +85,9 @@ python manage.py runserver
 2. 系统将打包所有标注数据为ZIP文件
 3. 包含的文件：
    - `data.json`：标注数据和原文
-   - `tag.json`：Tag标签集
-   - `label.json`：Label标签集  
-   - `relation.json`：关系标签集
+   - `tag.json`：Tag标签类型集
+   - `label.json`：Label标注类型集  
+   - `relation.json`：关系标注类型集
 
 ## 数据格式说明
 
@@ -119,17 +119,15 @@ python manage.py runserver
 ```
 
 ### 标签配置文件结构
-- `tag.json`：`[{"name": "标签名", "color": "#颜色值"}]`
-- `label.json`：`[{"name": "标签名", "color": "#颜色值"}]`
-- `relation.json`：`[{"name": "关系名", "color": "#颜色值"}]`
+- `tag.json`：`[{"name": "名称", "color": "#颜色值"}]`
+- `label.json`：`[{"name": "名称", "color": "#颜色值"}]`
+- `relation.json`：`[{"name": "名称", "color": "#颜色值"}]`
 
 ## 功能特性
 - ✅ 多任务管理
 - ✅ 多种标注类型支持
 - ✅ 可视化标注界面
-- ✅ 标注冲突检测
 - ✅ 数据导入导出
-- ✅ 标注历史记录
 - ✅ 响应式设计
 
 ## 技术架构
